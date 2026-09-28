@@ -1,0 +1,26 @@
+{
+  "source_version": "1.1.3",
+  "users": [
+    {
+      "name": "Pessoa Exemplo",
+      "email": "pessoa@empresa.com",
+      "role": "requester",
+      "department": "Marketing",
+      "active": true
+    }
+  ],
+  "categories": [{ "name": "Eventos" }],
+  "items": [
+    {
+      "code": "CAN-001",
+      "name": "Caneca institucional",
+      "description": "Caneca branca",
+      "category": "Eventos",
+      "unit": "unidade",
+      "min_stock": 10,
+      "status": "ativo"
+    }
+  ],
+  "stock": [{ "code": "CAN-001", "qty_on_hand": 100, "qty_reserved": 5 }]
+}
+

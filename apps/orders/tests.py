@@ -7,7 +7,7 @@ from apps.inventory.models import StockBalance
 from apps.inventory.services import register_movement
 
 from .models import GiftRequest, GiftRequestItem
-from .services import approve_request, fulfill_request, reserve_request, submit_request
+from .services import approve_request, fulfill_request, reject_request, reserve_request, submit_request
 
 
 class GiftRequestWorkflowTests(APITestCase):
@@ -53,3 +53,30 @@ class GiftRequestWorkflowTests(APITestCase):
 
         self.assertEqual(response.status_code, 400)
 
+    def test_partial_fulfillment_keeps_remaining_reservation(self):
+        submit_request(self.gift_request)
+        approve_request(self.gift_request, self.operator)
+        reserve_request(self.gift_request, self.operator)
+        item = self.gift_request.items.get()
+
+        fulfill_request(self.gift_request, self.operator, {str(item.id): 1})
+        self.gift_request.refresh_from_db()
+        balance = StockBalance.objects.get(product=self.product)
+        self.assertEqual(self.gift_request.status, GiftRequest.Status.PARTIALLY_FULFILLED)
+        self.assertEqual(balance.quantity, 9)
+        self.assertEqual(balance.reserved_quantity, 2)
+
+        fulfill_request(self.gift_request, self.operator)
+        self.gift_request.refresh_from_db()
+        balance.refresh_from_db()
+        self.assertEqual(self.gift_request.status, GiftRequest.Status.FULFILLED)
+        self.assertEqual(balance.reserved_quantity, 0)
+
+    def test_rejection_keeps_stock_unchanged(self):
+        submit_request(self.gift_request)
+        reject_request(self.gift_request, self.operator, "Sem orçamento")
+
+        self.gift_request.refresh_from_db()
+        balance = StockBalance.objects.get(product=self.product)
+        self.assertEqual(self.gift_request.status, GiftRequest.Status.REJECTED)
+        self.assertEqual(balance.quantity, 10)

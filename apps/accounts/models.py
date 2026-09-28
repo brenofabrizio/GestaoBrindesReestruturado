@@ -29,6 +29,7 @@ class UserProfile(models.Model):
         APPROVER = "approver", "Aprovador"
         OPERATOR = "operator", "Operador de estoque"
         ADMIN = "admin", "Administrador"
+        INDUSTRY = "industry", "Indústria"
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
@@ -41,4 +42,3 @@ class UserProfile(models.Model):
     class Meta:
         verbose_name = "perfil de usuário"
         verbose_name_plural = "perfis de usuário"
-

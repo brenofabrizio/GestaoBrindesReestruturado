@@ -1,9 +1,10 @@
 from rest_framework.permissions import BasePermission
 
+from apps.accounts.access import has_permission
 
-class IsStaffUser(BasePermission):
-    message = "Somente usuários operadores podem consultar a auditoria."
+
+class IsAuditReader(BasePermission):
+    message = "Somente usuários com permissão de auditoria podem consultar os eventos."
 
     def has_permission(self, request, view):
-        return bool(request.user and request.user.is_authenticated and request.user.is_staff)
-
+        return has_permission(request.user, "audit.view")

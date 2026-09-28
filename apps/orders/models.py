@@ -25,6 +25,7 @@ class GiftRequest(models.Model):
     )
     status = models.CharField(max_length=30, choices=Status.choices, default=Status.DRAFT)
     justification = models.TextField(blank=True)
+    rejection_reason = models.TextField(blank=True)
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
@@ -62,4 +63,3 @@ class GiftRequestItem(models.Model):
     @property
     def remaining_quantity(self):
         return self.quantity - self.fulfilled_quantity
-

@@ -28,6 +28,7 @@ class Migration(migrations.Migration):
                             ("approver", "Aprovador"),
                             ("operator", "Operador de estoque"),
                             ("admin", "Administrador"),
+                            ("industry", "Indústria"),
                         ],
                         default="requester",
                         max_length=20,

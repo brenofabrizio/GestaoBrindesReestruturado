@@ -26,6 +26,10 @@ Usuários possuem um `UserProfile` com papel funcional (`requester`, `approver`,
 `operator` ou `admin`), departamento e telefone. A autorização fina por papel será
 consolidada junto com as permissões de cada domínio.
 
+A matriz inicial foi baseada no sistema legado: solicitantes veem seus próprios pedidos,
+perfis de gestão veem pedidos do departamento ou todos, e operações executa reserva,
+atendimento e estoque sem receber permissão de aprovação administrativa.
+
 ## Estoque
 
 O saldo operacional é mantido em `StockBalance` e cada alteração gera um `StockMovement`.

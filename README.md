@@ -53,6 +53,9 @@ Endpoints iniciais:
 - `POST /api/v1/orders/requests/{id}/reserve/`
 - `POST /api/v1/orders/requests/{id}/fulfill/`
 - `GET /api/v1/audit/events/` (operadores)
+
+O frontend está em `frontend/` e pode ser publicado como um projeto Vercel separado
+com Root Directory `frontend`. Ele usa `VITE_API_BASE_URL` para apontar para esta API.
 - `GET /api/docs/`
 - `GET /api/schema/`
 

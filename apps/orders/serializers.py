@@ -34,6 +34,7 @@ class GiftRequestSerializer(serializers.ModelSerializer):
             "requester",
             "status",
             "justification",
+            "rejection_reason",
             "approved_by",
             "submitted_at",
             "approved_at",

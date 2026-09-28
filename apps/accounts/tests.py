@@ -1,6 +1,7 @@
 from django.urls import reverse
 from rest_framework.test import APITestCase
 
+from .access import has_permission
 from .models import User
 
 
@@ -28,3 +29,7 @@ class AuthenticationTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["email"], "admin@example.com")
         self.assertEqual(response.json()["profile"]["role"], "requester")
+
+    def test_requester_cannot_approve(self):
+        self.assertTrue(has_permission(self.user, "requests.create"))
+        self.assertFalse(has_permission(self.user, "requests.approve"))
