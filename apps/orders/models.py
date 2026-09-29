@@ -50,14 +50,18 @@ class GiftRequest(models.Model):
 class GiftRequestItem(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     request = models.ForeignKey(GiftRequest, on_delete=models.CASCADE, related_name="items")
-    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name="gift_request_items")
+    product = models.ForeignKey(
+        Product, on_delete=models.PROTECT, related_name="gift_request_items"
+    )
     quantity = models.PositiveIntegerField()
     reserved_quantity = models.PositiveIntegerField(default=0)
     fulfilled_quantity = models.PositiveIntegerField(default=0)
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["request", "product"], name="unique_product_per_gift_request")
+            models.UniqueConstraint(
+                fields=["request", "product"], name="unique_product_per_gift_request"
+            )
         ]
 
     @property

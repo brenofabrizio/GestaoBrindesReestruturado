@@ -45,7 +45,12 @@ class StockMovement(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
-        indexes = [models.Index(fields=["product", "created_at"])]
+        indexes = [
+            models.Index(
+                fields=["product", "created_at"],
+                name="inventory_s_product_19ad2a_idx",
+            )
+        ]
         constraints = [
             models.CheckConstraint(
                 condition=~models.Q(quantity_delta=0),

@@ -9,8 +9,21 @@ class StockBalanceSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = StockBalance
-        fields = ["id", "product", "quantity", "reserved_quantity", "available_quantity", "updated_at"]
-        read_only_fields = ["id", "quantity", "reserved_quantity", "available_quantity", "updated_at"]
+        fields = [
+            "id",
+            "product",
+            "quantity",
+            "reserved_quantity",
+            "available_quantity",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "quantity",
+            "reserved_quantity",
+            "available_quantity",
+            "updated_at",
+        ]
 
 
 class StockMovementSerializer(serializers.ModelSerializer):

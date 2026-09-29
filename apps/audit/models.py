@@ -23,8 +23,14 @@ class AuditEvent(models.Model):
     class Meta:
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["entity_type", "entity_id"]),
-            models.Index(fields=["actor", "created_at"]),
+            models.Index(
+                            fields=["entity_type", "entity_id"],
+                            name="audit_audit_entity__ec1c7c_idx",
+                        ),
+                        models.Index(
+                            fields=["actor", "created_at"],
+                            name="audit_audit_actor_i_2db8ea_idx",
+                        ),
         ]
         verbose_name = "evento de auditoria"
         verbose_name_plural = "eventos de auditoria"

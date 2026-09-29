@@ -18,6 +18,8 @@ class User(AbstractUser):
     class Meta:
         db_table = "accounts_user"
         ordering = ["email"]
+        verbose_name = "user"
+        verbose_name_plural = "users"
 
     def __str__(self):
         return self.email

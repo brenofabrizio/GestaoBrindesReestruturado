@@ -46,7 +46,11 @@ class StockMovementServiceTests(APITestCase):
 class StockMovementApiTests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(
-            email="stock-api@example.com", username="stock-api", password="strong-password-123"
+            email="stock-api@example.com",
+            username="stock-api",
+            password="strong-password-123",
+            is_superuser=True,
+            is_staff=True,
         )
         self.client.force_authenticate(self.user)
         self.product = Product.objects.create(sku="GARR-001", name="Garrafa")

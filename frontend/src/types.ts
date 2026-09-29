@@ -70,3 +70,21 @@ export type GiftRequest = {
   created_at: string;
 };
 
+export type AuditEvent = {
+  id: string;
+  actor: string | null;
+  actor_email: string;
+  action: string;
+  entity_type: string;
+  entity_id: string;
+  metadata: Record<string, unknown>;
+  request_id: string;
+  created_at: string;
+};
+
+export type Page<T> = {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+};

@@ -28,7 +28,9 @@ def submit_request(gift_request: GiftRequest) -> GiftRequest:
     gift_request.status = GiftRequest.Status.SUBMITTED
     gift_request.submitted_at = timezone.now()
     gift_request.save(update_fields=["status", "submitted_at", "updated_at"])
-    record_event(action="orders.request_submitted", entity=gift_request, actor=gift_request.requester)
+    record_event(
+        action="orders.request_submitted", entity=gift_request, actor=gift_request.requester
+    )
     return gift_request
 
 
@@ -103,9 +105,7 @@ def reserve_request(gift_request: GiftRequest, reserved_by=None) -> GiftRequest:
         balance, _ = StockBalance.objects.select_for_update().get_or_create(product=item.product)
         available = balance.quantity - balance.reserved_quantity
         if available < item.remaining_quantity:
-            raise InsufficientStockError(
-                f"Estoque insuficiente para o produto {item.product.sku}."
-            )
+            raise InsufficientStockError(f"Estoque insuficiente para o produto {item.product.sku}.")
         balance.reserved_quantity += item.remaining_quantity
         balance.save(update_fields=["reserved_quantity", "updated_at"])
         item.reserved_quantity += item.remaining_quantity
@@ -125,6 +125,7 @@ def fulfill_request(gift_request: GiftRequest, fulfilled_by, quantities=None) ->
         raise ValueError("Somente solicitações reservadas podem ser atendidas.")
 
     items = _items_for_update(gift_request)
+    fulfilled_any = False
     for item in items:
         remaining = item.remaining_quantity
         requested_amount = remaining
@@ -137,6 +138,7 @@ def fulfill_request(gift_request: GiftRequest, fulfilled_by, quantities=None) ->
         if item.reserved_quantity < requested_amount:
             raise ValueError("O item não possui reserva suficiente para atendimento.")
 
+        fulfilled_any = True
         register_movement(
             product=item.product,
             movement_type=StockMovement.MovementType.EXIT,
@@ -152,13 +154,13 @@ def fulfill_request(gift_request: GiftRequest, fulfilled_by, quantities=None) ->
         item.reserved_quantity -= requested_amount
         item.save(update_fields=["fulfilled_quantity", "reserved_quantity"])
 
+    if not fulfilled_any:
+        raise ValueError("Informe ao menos uma quantidade maior que zero para atendimento.")
     all_fulfilled = not GiftRequestItem.objects.filter(
         request=gift_request, fulfilled_quantity__lt=F("quantity")
     ).exists()
     gift_request.status = (
-        GiftRequest.Status.FULFILLED
-        if all_fulfilled
-        else GiftRequest.Status.PARTIALLY_FULFILLED
+        GiftRequest.Status.FULFILLED if all_fulfilled else GiftRequest.Status.PARTIALLY_FULFILLED
     )
     gift_request.save(update_fields=["status", "updated_at"])
     record_event(action="orders.request_fulfilled", entity=gift_request, actor=fulfilled_by)

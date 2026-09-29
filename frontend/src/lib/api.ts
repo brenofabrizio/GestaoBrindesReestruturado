@@ -1,4 +1,4 @@
-import type { Category, GiftRequest, Product, StockBalance, StockMovement, User } from "../types";
+import type { AuditEvent, Category, GiftRequest, Page, Product, StockBalance, StockMovement, User } from "../types";
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api/v1";
 const ACCESS_KEY = "gestao_brindes_access";
@@ -60,6 +60,14 @@ export const api = {
   me: () => apiFetch<User>("/auth/me/"),
   products: () => apiFetch<Product[]>("/catalog/products/"),
   categories: () => apiFetch<Category[]>("/catalog/categories/"),
+  createProduct: (payload: Partial<Product>) => apiFetch<Product>("/catalog/products/", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  }),
+  updateProduct: (id: string, payload: Partial<Product>) => apiFetch<Product>(`/catalog/products/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  }),
   balances: () => apiFetch<StockBalance[]>("/inventory/balances/"),
   movements: () => apiFetch<StockMovement[]>("/inventory/movements/"),
   createMovement: (payload: Partial<StockMovement>) =>
@@ -78,5 +86,9 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  audit: (filters: Record<string, string>, page = 1) => {
+    const params = new URLSearchParams({ ...filters, page: String(page) });
+    return apiFetch<Page<AuditEvent>>(`/audit/events/?${params.toString()}`);
+  },
 };
 

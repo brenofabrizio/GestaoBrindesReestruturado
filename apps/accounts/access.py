@@ -1,6 +1,5 @@
 from collections.abc import Iterable
 
-
 ROLE_PERMISSIONS = {
     "admin": {"*"},
     "approver": {
@@ -15,7 +14,6 @@ ROLE_PERMISSIONS = {
         "requests.create",
         "requests.view_own",
         "requests.view_department",
-        "requests.view_all",
         "requests.approve",
         "requests.process",
         "requests.cancel_any",

@@ -25,6 +25,10 @@ Para deploys de preview, use uma branch/banco separado no provedor PostgreSQL. C
 executa migrações, apontar previews diretamente para o banco de produção pode aplicar uma
 migração antes da publicação oficial.
 
+Em produção, a aplicação falha ao iniciar se faltar segredo forte, PostgreSQL persistente,
+hosts concretos ou origens CORS/CSRF explícitas. Confira as variáveis, smoke tests, migração
+e dependências externas em [`docs/GO-LIVE.md`](docs/GO-LIVE.md) antes de publicar.
+
 ## Desenvolvimento local
 
 ```powershell
