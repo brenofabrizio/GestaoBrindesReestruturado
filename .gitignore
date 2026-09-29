@@ -9,6 +9,7 @@ htmlcov/
 .env
 db.sqlite3
 *.log
+*.credentials.json
 staticfiles/
 media/
 .idea/
