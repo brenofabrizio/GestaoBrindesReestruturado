@@ -12,6 +12,15 @@ export type User = {
     department: string;
     phone: string;
   };
+  is_active?: boolean;
+};
+
+export type LookupType = "categories" | "departments" | "industries" | "locations" | "suppliers";
+
+export type LookupRecord = {
+  id: string;
+  name: string;
+  is_active: boolean;
 };
 
 export type Category = {

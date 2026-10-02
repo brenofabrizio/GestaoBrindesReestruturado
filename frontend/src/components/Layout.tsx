@@ -1,4 +1,4 @@
-import { BarChart3, Boxes, ClipboardList, LayoutDashboard, LogOut, Package, ShieldCheck } from "lucide-react";
+import { Boxes, ClipboardList, LayoutDashboard, LogOut, Package, Settings2, ShieldCheck } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { can } from "../lib/access";
@@ -9,6 +9,7 @@ const navigation = [
   { to: "/inventory", label: "Estoque", icon: Package },
   { to: "/requests", label: "Solicitações", icon: ClipboardList },
   { to: "/audit", label: "Auditoria", icon: ShieldCheck },
+  { to: "/management", label: "Gestão do sistema", icon: Settings2 },
 ];
 
 export function Layout() {
@@ -18,7 +19,7 @@ export function Layout() {
       <aside className="sidebar">
         <div className="brand"><span className="brand-mark">GB</span><span>Gestão Brindes</span></div>
         <nav className="nav-list">
-          {navigation.filter(({ to }) => to !== "/inventory" || can(user, "stock.view")).filter(({ to }) => to !== "/audit" || can(user, "audit.view")).map(({ to, label, icon: Icon }) => (
+          {navigation.filter(({ to }) => to !== "/inventory" || can(user, "stock.view")).filter(({ to }) => to !== "/audit" || can(user, "audit.view")).filter(({ to }) => to !== "/management" || can(user, "users.manage") || can(user, "lookups.manage") || can(user, "roles.manage")).map(({ to, label, icon: Icon }) => (
             <NavLink key={to} to={to} end={to === "/"} className={({ isActive }) => isActive ? "nav-item active" : "nav-item"}>
               <Icon size={18} />{label}
             </NavLink>

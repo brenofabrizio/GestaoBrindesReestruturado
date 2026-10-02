@@ -1,247 +1,141 @@
-# TRD — Gestão de Brindes
+# TRD — Gestão de Brindes Reestruturado
 
-**Versão:** 1.0  
-**Data:** 28/09/2026  
-**Escopo:** estado técnico atual, decisões, entregas e plano de conclusão
+**Versão:** 1.1
+**Data:** 02/10/2026
+**Estado:** aplicação executada em modo local no navegador; paridade funcional ainda incompleta.
 
-> Atualização: o modo executável atual é frontend-only, com `seed.json` como fonte inicial e `localStorage` como persistência local. PostgreSQL e API Django continuam preparados como evolução futura, mas não são necessários para a demonstração atual.
+## 1. Fonte da verdade e situação real
 
-## 1. Resumo técnico
+O sistema legado `GestaoBrinde` é a referência de requisitos e comportamentos. O modo atualmente conectado à interface é React + TypeScript + Vite, publicado como frontend estático e usando `frontend/src/data/seed.json` para carga inicial e `localStorage` para persistência daquele navegador.
 
-O sistema possui dois modos. O modo atual é React/TypeScript/Vite com dados JSON e persistência em `localStorage`, adequado para demonstração sem infraestrutura. O modo futuro é um monólito modular Django com API REST versionada, autenticação JWT e PostgreSQL como banco oficial.
+O repositório também contém um backend Django/DRF e modelos/serviços parciais. O frontend local atual não consome essa API; por isso, endpoints e regras existentes no backend não são considerados funcionalidades disponíveis no site. A matriz completa de lacunas está em [PARIDADE-FUNCIONAL.md](./PARIDADE-FUNCIONAL.md).
 
-O sistema não depende de Docker ou Python instalado na máquina do usuário para o deploy. O runtime Python é provisionado pelo ambiente de hospedagem. Docker e Python continuam úteis apenas para desenvolvimento local, testes e operação controlada.
+Não é necessário instalar Docker ou Python para compilar/publicar o frontend atual. Isso não significa que a aplicação atual forneça armazenamento central ou autenticação segura.
 
-## 2. Estado atual da implementação
-
-| Área | Implementado | Pendente |
-|---|---|---|
-| Backend Django | Apps `core`, `accounts`, `catalog`, `inventory`, `orders`, `audit`; URLs, serializers, migrations e serviços | Executar testes com Python disponível e homologar em ambiente publicado |
-| Autenticação | Usuário por e-mail, JWT, endpoint `/auth/me/`, refresh | Recuperação de senha, política de sessão e mensagens finais |
-| Autorização | Matriz estática em `apps/accounts/access.py`, permission class e filtros de queryset | Validar matriz com negócio; avaliar RBAC configurável |
-| Catálogo | Categorias, produtos, SKU, unidade, estoque mínimo, API e tela inicial | Formulários completos, filtros, paginação e desativação pela UI |
-| Estoque | Saldo físico/reservado, movimentações transacionais, reserva e baixa | Histórico visual completo, filtros, transferência e testes concorrentes |
-| Solicitações | Estados, envio, aprovação, rejeição, cancelamento, reserva e atendimento parcial | Jornada visual completa e testes ponta a ponta |
-| Auditoria | Evento imutável com ator, ação, entidade e metadados | Consulta filtrada/paginada no frontend |
-| Migração | Validação, simulação e aplicação transacional de mestres e saldos | Histórico e pacote oficial do legado |
-| Frontend | React, rotas protegidas, login, dashboard, catálogo, estoque e solicitações | Detalhes, estados de erro, auditoria e acabamento de fluxo |
-| CI/CD | Código versionado e push realizado | Pipeline, deploy Vercel, banco, smoke test e rollback |
-
-## 3. Arquitetura
+## 2. Arquitetura ativa
 
 ```text
-Modo atual
-Navegador
-   |
-   +--> React/TypeScript/Vite
-   +--> seed.json
-   +--> localStorage
-
-Modo futuro
-Navegador --> React/TypeScript/Vite --> Django + DRF --> PostgreSQL
-                                                   +--> Auditoria transacional
-                                                   +--> Importador JSON controlado
+ navegador de cada pessoa
+       |
+       +--> frontend React/TypeScript/Vite publicado na Vercel
+                |
+                +--> seed.json (modelo de dados inicial)
+                +--> adaptador frontend/src/lib/api.ts
+                         |
+                         +--> localStore.ts --> localStorage daquele navegador
 ```
 
-### 3.1 Organização do backend
+O nome `api.ts` é uma interface de compatibilidade; neste modo não faz chamadas de rede. A camada de armazenamento guarda JSON local e atende a interface. Os dados não são compartilhados entre usuários, dispositivos ou navegadores, não têm backup automático e podem ser removidos pelo usuário ou pelo navegador.
 
-- `config/`: settings, WSGI/ASGI e roteamento.
-- `apps/core/`: health check e comandos operacionais.
-- `apps/accounts/`: usuário, perfil, autenticação e autorização.
-- `apps/catalog/`: categorias e produtos.
-- `apps/inventory/`: saldo e movimentações.
-- `apps/orders/`: solicitações, itens e workflow.
-- `apps/audit/`: eventos de auditoria.
+## 3. Componentes do frontend
 
-### 3.2 Organização do frontend
-
-- `src/context/AuthContext.tsx`: sessão, login, refresh e logout.
-- `src/lib/api.ts`: cliente HTTP e armazenamento dos tokens.
-- `src/lib/access.ts`: helpers de visibilidade por permissão.
-- `src/components/`: layout, cabeçalhos e cards.
-- `src/pages/`: login, dashboard, catálogo, estoque, solicitações e auditoria.
-
-## 4. Decisões técnicas
-
-1. **Monólito modular:** mantém transações simples entre estoque, pedidos e auditoria sem custo operacional de microserviços.
-2. **PostgreSQL em produção:** oferece persistência e concorrência adequadas; SQLite existe somente como fallback local.
-3. **JWT:** adequado para o frontend separado e para a comunicação via API.
-4. **Serviços de domínio:** transições de solicitação e movimentações ficam em serviços reutilizáveis, não apenas em views.
-5. **Saldo + movimentação:** `StockBalance` permite leitura rápida; `StockMovement` preserva a trilha de alterações.
-6. **Importação explícita:** o legado é somente leitura; o novo sistema recebe um JSON validado e só grava com `--apply`.
-7. **Frontend desacoplado:** no modo local não depende da API; no modo futuro aponta para a API por `VITE_API_BASE_URL`.
-
-## 5. Autorização
-
-As permissões são definidas atualmente em `ROLE_PERMISSIONS`:
-
-| Domínio | Permissões principais |
+| Componente | Responsabilidade atual |
 |---|---|
-| Dashboard | `dashboard.view` |
-| Catálogo | `catalog.view`, `catalog.manage` |
-| Estoque | `stock.view`, `stock.entry`, `stock.exit`, `stock.adjust`, `stock.transfer`, `stock.receive`, `stock.exit_confirm` |
-| Solicitações | `requests.create`, `requests.view_own`, `requests.view_department`, `requests.view_all`, `requests.approve`, `requests.process`, `requests.cancel_any` |
-| Auditoria | `audit.view` |
+| `src/App.tsx` | Rotas ativas: dashboard, catálogo, estoque, solicitações, auditoria e gestão do sistema |
+| `src/context/AuthContext.tsx` | Sessão local e usuário autenticado |
+| `src/lib/api.ts` | Adaptador comum consumido pelas páginas; aponta para o modo local |
+| `src/lib/localStore.ts` | Leitura/gravação de JSON no navegador, dados de demonstração e regras locais |
+| `src/lib/access.ts` | Consulta às permissões armazenadas localmente para controlar menus/ações na interface |
+| `src/data/seed.json` | Contas, produtos, saldos, movimentos, solicitações e referências de demonstração |
+| `src/pages/ManagementPage.tsx` | Gestão inicial local de usuários, cadastros auxiliares e permissões |
 
-Regras de escopo:
+Rotas existentes não cobrem a lista completa de páginas do legado. A lista de módulos a implementar está em `PARIDADE-FUNCIONAL.md` e deve orientar novas rotas/componentes.
 
-- `view_own`: filtra por `requester` igual ao usuário autenticado.
-- `view_department`: filtra pelo departamento do perfil do usuário.
-- `view_all`: permite leitura global.
-- Cancelamento próprio é permitido apenas para o solicitante e em estados elegíveis; cancelamento global exige `requests.cancel_any`.
-- O backend é a autoridade final. A ocultação de menus no React é apenas UX.
+## 4. Persistência local e modelo atual
 
-Pendência técnica: transformar a matriz em entidades persistidas somente se houver necessidade de administrar permissões sem nova publicação.
+Chave principal do banco local: `gestao_brindes_json_database_v1`. Sessão: `gestao_brindes_local_user`. O banco em memória é inicializado a partir de `seed.json` quando não existe conteúdo salvo.
 
-## 6. Modelo de dados resumido
+Coleções atuais:
 
-### Usuários
+- `users` e `rolePermissions`;
+- `categories`, `departments`, `industries`, `locations`, `suppliers`;
+- `products`, `balances`, `movements`;
+- `requests` e `audit`.
 
-- `accounts.User`: e-mail único, nome, ativo e credenciais.
-- `accounts.UserProfile`: papel, departamento e telefone.
+Os cadastros adicionados usam IDs locais; produto e saldo continuam modelos simplificados. Faltam, entre outros, posições por local, regras/histórico de aprovação, operações de compra TRADE, entradas contra NF, fila física do CD, deliveries/protocolos, assinatura, eventos, notificações e configurações.
 
-### Catálogo
+Uma mudança do formato de `seed.json` só atualiza usuários com armazenamento vazio. Navegadores já utilizados podem manter uma versão anterior do JSON; mudanças de esquema devem incluir migração local versionada e preservar os dados existentes. O carregamento deve tratar JSON inválido sem sobrescrever silenciosamente dados recuperáveis.
 
-- `catalog.Category`: nome e ativo.
-- `catalog.Product`: SKU, nome, descrição, categoria, unidade, estoque mínimo e ativo.
+## 5. Autenticação, permissões e segurança
 
-### Estoque
+O login atual compara e-mail/senha mantidos no JSON local. A cópia local de credenciais não tem hash ou proteção de servidor; qualquer código e dado embarcado no frontend é inspecionável pelo usuário. Permissões locais melhoram a consistência dos fluxos de demonstração, mas não resistem à alteração do navegador ou chamada direta do código.
 
-- `inventory.StockBalance`: produto, quantidade física, quantidade reservada e atualização.
-- `inventory.StockMovement`: produto, tipo, delta, referência, observação, usuário e data.
+Portanto:
 
-### Solicitações
+- não usar as contas locais como credenciais corporativas ou de produção;
+- não colocar segredos pessoais/reais em `seed.json`;
+- o modo local deve ser tratado como protótipo/demonstração individual;
+- para operação multiusuário, reimplementar autenticação e autorização no servidor e mover o armazenamento para uma fonte persistente central;
+- validar escopo por usuário, departamento e indústria no servidor quando essa arquitetura for adotada.
 
-- `orders.GiftRequest`: solicitante, status, justificativa, aprovador, datas e motivo de rejeição.
-- `orders.GiftRequestItem`: produto, quantidade solicitada, reservada e atendida.
+## 6. Regras de negócio a preservar
 
-### Auditoria
+As regras devem ser extraídas do legado e mantidas no adaptador de domínio, não espalhadas por componentes React. Escopo mínimo:
 
-- `audit.AuditEvent`: ator, ação, tipo/id da entidade, metadados JSON, request id e data.
+- transições válidas de solicitações e motivo obrigatório para rejeição;
+- quantidade solicitada, reservada, atendida e restante por item;
+- saldo disponível igual ao físico menos reservas;
+- bloqueio de baixa além do saldo/reserva;
+- solicitação e cancelamento próprios distintos de ações administrativas;
+- registro de saída pelo gestor separado de confirmação pelo CD;
+- transferência reduz a origem e aumenta o destino sem alterar o total;
+- rastreabilidade por ator, data, entidade, referência e movimento correspondente;
+- regras diferentes por perfil, departamento e indústria.
 
-## 7. Regras transacionais críticas
+No modo local, essas regras são úteis para validar a experiência, mas não substituem transações e controles de concorrência de servidor.
 
-### Reserva
+## 7. Diferenças entre os modos
 
-1. Bloquear a solicitação e os saldos relacionados.
-2. Calcular `available = quantity - reserved_quantity`.
-3. Rejeitar se o disponível for menor que o restante solicitado.
-4. Incrementar reserva no saldo e no item.
-5. Registrar evento de auditoria.
+| Capacidade | LocalStorage atual | Necessária para paridade compartilhada |
+|---|---|---|
+| Sem banco/Docker/Python local | Sim | Continua possível no computador do usuário |
+| Alteração persiste ao recarregar o mesmo navegador | Sim | Sim |
+| Vários usuários veem os mesmos dados | Não | Serviço central e persistente |
+| Credenciais protegidas contra inspeção do browser | Não | Autenticação no servidor e segredos fora do bundle |
+| Operações simultâneas confiáveis | Não | Transações/controle de concorrência |
+| Envio de e-mail, Lecom e processamento agendado | Não | Integração/backend ou serviço externo |
+| Backup central e restauração administrativa | Não | Serviço e política de backup |
 
-### Atendimento
+## 8. Plano técnico de paridade
 
-1. Aceitar solicitação reservada ou parcialmente atendida.
-2. Validar quantidade por item contra o restante.
-3. Registrar saída com delta negativo.
-4. Reduzir reserva e aumentar quantidade atendida.
-5. Definir `partially_fulfilled` ou `fulfilled`.
-6. Registrar evento de auditoria.
+### P0 — Fundação local
 
-### Cancelamento
+- Acoplar gestão de usuários, referências e permissões ao adaptador JSON.
+- Aplicar permissões às operações locais e corrigir recortes de solicitações.
+- Versionar migrações do JSON local e impedir perda silenciosa de dados.
 
-1. Bloquear solicitação e itens.
-2. Liberar toda reserva não atendida.
-3. Marcar como cancelada.
-4. Registrar evento de auditoria.
+### P1 — Catálogo e estoque
 
-Todas as etapas ficam dentro de `transaction.atomic`; saldos relacionados usam `select_for_update`.
+- Completar entidades de produto, imagem/histórico e posição por local.
+- Introduzir tipos de movimento, NF/referência e fluxos distintos de registro/confirmação.
+- Implementar estorno e transferência com integridade de saldos.
 
-## 8. Contrato de API atual
+### P2 — Solicitações internas
 
-Base: `/api/v1/`
+- Adicionar estado/histórico formal, aprovações e regras configuráveis.
+- Criar filas de separação/entrega e comprovantes.
+- Aplicar escopos de acesso por perfil/departamento/indústria.
 
-- `GET /health/`
-- `POST /auth/token/`
-- `POST /auth/token/refresh/`
-- `GET /auth/me/`
-- `GET|POST /catalog/categories/`
-- `GET|POST /catalog/products/`
-- `GET /inventory/balances/`
-- `GET|POST /inventory/movements/`
-- `GET|POST /orders/requests/`
-- `POST /orders/requests/{id}/submit/`
-- `POST /orders/requests/{id}/approve/`
-- `POST /orders/requests/{id}/reject/` com `{ "reason": "..." }`
-- `POST /orders/requests/{id}/reserve/`
-- `POST /orders/requests/{id}/fulfill/` com itens opcionais `{ "items": [{ "item_id": "...", "quantity": 1 }] }`
-- `POST /orders/requests/{id}/cancel/`
-- `GET /audit/events/`
-- `GET /api/docs/`
-- `GET /api/schema/`
+### P3 — TRADE e eventos
 
-Pendências de contrato: paginação padronizada, filtros documentados, erros com código estável e endpoints específicos para dashboard/relatórios.
+- Modelar compra, recebimento, QR, assinatura, protocolo e evento.
+- Definir quais passos são demonstráveis em modo local e quais exigem integração externa.
 
-## 9. Migração do legado
+### P4 — Relatórios e administração
 
-Origem inspecionada em modo somente leitura no commit `c8a9dd3`.
+- Relatórios/exportação, importação simulada/validada, auditoria completa, notificações, configurações e cópia/restauração.
 
-Mapeamento atual:
+### P5 — Persistência compartilhada (fase futura)
 
-| Origem | Destino |
-|---|---|
-| `users` | `accounts.User` + `UserProfile` |
-| `roles` | `UserProfile.role` |
-| `departments` | `UserProfile.department` |
-| `categories` | `catalog.Category` |
-| `items` | `catalog.Product` |
-| `stock` | `inventory.StockBalance` |
-| `stock_movements` | Pendente: `inventory.StockMovement` |
-| solicitações | Pendente: `orders.GiftRequest` e itens |
-| auditoria | Pendente: `audit.AuditEvent` |
+- Substituir o adaptador local por serviço central sem alterar os contratos usados pelas páginas.
+- Implementar identidade, autorização, transações, backups e integrações em servidor.
+- Importar e reconciliar dados somente após ensaio em cópia do legado.
 
-Comandos previstos:
+## 9. Critérios técnicos de pronto
 
-```powershell
-python manage.py import_legacy docs/legacy-import.example.json
-python manage.py import_legacy caminho/para/pacote.json --apply
-```
-
-O primeiro comando valida e simula; o segundo grava dentro de uma transação. Antes da aplicação oficial, gerar contagens de usuários, produtos, categorias, saldo físico e saldo reservado e comparar com a origem.
-
-## 10. Segurança e operação
-
-Obrigatório em produção:
-
-- `DJANGO_SECRET_KEY` forte e fora do repositório.
-- `DATABASE_URL` apontando para PostgreSQL persistente.
-- `DJANGO_DEBUG=false`.
-- `DJANGO_ALLOWED_HOSTS` restrito aos domínios usados.
-- `CORS_ALLOWED_ORIGINS` restrito ao frontend.
-- Banco de preview separado do banco de produção.
-- Backup e política de retenção definidos pelo provedor.
-- Logs sem senha, token ou dados pessoais desnecessários.
-
-Pontos a implementar:
-
-- pipeline de lint, testes e build;
-- smoke test pós-deploy;
-- monitoramento de erros;
-- procedimento de rollback;
-- gestão de segredos e banco documentada;
-- testes de carga e concorrência para reserva/atendimento.
-
-## 11. Verificação técnica já realizada
-
-- `npm install` executado com sucesso.
-- `npm run build` do frontend executado com sucesso.
-- `npm audit --omit=dev --audit-level=high` sem vulnerabilidades altas encontradas.
-- Tela de login verificada visualmente em execução local.
-- Código versionado no GitHub no commit `05f5f2d`.
-
-Limitação atual: não foi possível executar Django migrations/testes backend nesta máquina porque o runtime Python não está instalado. Isso deve ser executado no CI ou no ambiente de desenvolvimento/deploy antes do go-live.
-
-## 12. Plano técnico de conclusão
-
-1. Provisionar PostgreSQL e autenticar na Vercel.
-2. Configurar projeto da API e projeto do frontend.
-3. Adicionar variáveis de ambiente e restringir CORS/hosts.
-4. Executar migrations, criar usuário administrador e validar health check.
-5. Publicar frontend apontando para a API.
-6. Conectar formulário e detalhe completo de solicitações.
-7. Conectar consulta de auditoria.
-8. Criar testes backend para permissões, isolamento, reserva, cancelamento e atendimento parcial.
-9. Criar testes de jornada do frontend.
-10. Rodar simulação de migração, corrigir divergências e executar carga oficial.
-11. Fazer aceite com usuários dos cinco perfis.
-12. Publicar release e acompanhar o primeiro ciclo operacional.
+- Rota e controles correspondentes existem e são acessíveis pelos perfis autorizados.
+- Regras inválidas são rejeitadas no adaptador de domínio; a interface não é a única proteção.
+- Escrita gera auditoria quando aplicável e não deixa saldos incoerentes.
+- Migração local de esquema preserva dados anteriores.
+- Documentação diferencia explicitamente código presente, frontend conectado e serviço externo disponível.
+- Para marcar paridade, validar fluxo equivalente no legado e no reestruturado com cenários por perfil.

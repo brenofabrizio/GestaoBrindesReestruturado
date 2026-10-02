@@ -51,6 +51,26 @@
     { "id": "cat-institucional", "name": "Institucional", "is_active": true },
     { "id": "cat-onboarding", "name": "Onboarding", "is_active": true }
   ],
+  "departments": [
+    { "id": "dept-comercial", "name": "Comercial", "is_active": true },
+    { "id": "dept-marketing", "name": "Marketing", "is_active": true },
+    { "id": "dept-operacoes", "name": "Operações", "is_active": true }
+  ],
+  "industries": [
+    { "id": "industry-brasil", "name": "Brasil", "is_active": true }
+  ],
+  "locations": [
+    { "id": "location-cd", "name": "Centro de distribuição", "is_active": true }
+  ],
+  "suppliers": [],
+  "rolePermissions": {
+    "admin": ["*"],
+    "approver": ["catalog.view", "catalog.manage", "stock.view", "requests.create", "requests.view_all", "requests.approve", "requests.process", "audit.view", "lookups.view", "lookups.manage"],
+    "operations": ["catalog.view", "catalog.manage", "stock.view", "stock.entry", "stock.adjust", "stock.transfer", "stock.exit_confirm", "requests.view_all", "requests.process", "audit.view"],
+    "operator": ["catalog.view", "stock.view", "requests.view_all", "requests.process", "audit.view"],
+    "requester": ["catalog.view", "requests.create", "requests.view_own"],
+    "industry": ["catalog.view", "stock.view", "requests.view_own"]
+  },
   "products": [
     { "id": "product-caneca", "sku": "BRD-001", "name": "Caneca institucional", "description": "Caneca cerâmica com identidade visual.", "category": "cat-institucional", "unit": "unidade", "minimum_stock": 20, "is_active": true },
     { "id": "product-caderno", "sku": "BRD-002", "name": "Caderno executivo", "description": "Caderno pautado para eventos e reuniões.", "category": "cat-eventos", "unit": "unidade", "minimum_stock": 15, "is_active": true },

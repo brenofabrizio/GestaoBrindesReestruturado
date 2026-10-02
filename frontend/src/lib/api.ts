@@ -1,4 +1,4 @@
-import type { AuditEvent, Category, GiftRequest, Page, Product, StockBalance, StockMovement, User } from "../types";
+import type { AuditEvent, Category, GiftRequest, LookupType, Page, Product, Role, StockBalance, StockMovement, User } from "../types";
 import { localDb } from "./localStore";
 
 const ACCESS_KEY = "gestao_brindes_local_access";
@@ -29,6 +29,10 @@ export const api = {
   categories: async (): Promise<Category[]> => localDb.categories(),
   createProduct: async (payload: Partial<Product>): Promise<Product> => localDb.createProduct(payload),
   updateProduct: async (id: string, payload: Partial<Product>): Promise<Product> => localDb.updateProduct(id, payload),
+  management: async () => localDb.management(),
+  saveLookup: async (type: LookupType, payload: { id?: string; name: string; is_active?: boolean }) => localDb.saveLookup(type, payload),
+  saveUser: async (payload: { id?: string; username: string; email: string; first_name: string; last_name: string; role: Role; department: string; phone?: string; password?: string; is_active?: boolean }) => localDb.saveUser(payload),
+  saveRolePermissions: async (role: Role, permissions: string[]) => localDb.saveRolePermissions(role, permissions),
   balances: async (): Promise<StockBalance[]> => localDb.balances(),
   movements: async (): Promise<StockMovement[]> => localDb.movements(),
   createMovement: async (payload: Partial<StockMovement>): Promise<StockMovement> => localDb.createMovement(payload),
