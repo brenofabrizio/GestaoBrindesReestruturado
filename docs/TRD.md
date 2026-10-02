@@ -4,9 +4,11 @@
 **Data:** 28/09/2026  
 **Escopo:** estado técnico atual, decisões, entregas e plano de conclusão
 
+> Atualização: o modo executável atual é frontend-only, com `seed.json` como fonte inicial e `localStorage` como persistência local. PostgreSQL e API Django continuam preparados como evolução futura, mas não são necessários para a demonstração atual.
+
 ## 1. Resumo técnico
 
-O sistema é um monólito modular Django com API REST versionada, autenticação JWT, PostgreSQL como banco oficial e React/TypeScript/Vite como frontend. O deploy planejado separa o frontend em um projeto Vercel com Root Directory `frontend` e mantém a API Django em um projeto/runtime compatível, usando o mesmo domínio ou roteamento configurado.
+O sistema possui dois modos. O modo atual é React/TypeScript/Vite com dados JSON e persistência em `localStorage`, adequado para demonstração sem infraestrutura. O modo futuro é um monólito modular Django com API REST versionada, autenticação JWT e PostgreSQL como banco oficial.
 
 O sistema não depende de Docker ou Python instalado na máquina do usuário para o deploy. O runtime Python é provisionado pelo ambiente de hospedagem. Docker e Python continuam úteis apenas para desenvolvimento local, testes e operação controlada.
 
@@ -28,19 +30,17 @@ O sistema não depende de Docker ou Python instalado na máquina do usuário par
 ## 3. Arquitetura
 
 ```text
+Modo atual
 Navegador
    |
-   | HTTPS + JWT
-   v
-React/TypeScript/Vite (Vercel, frontend/)
-   |
-   | REST /api/v1/
-   v
-Django + DRF (Vercel/runtime Python)
-   |
-   +--> PostgreSQL gerenciado (produção)
-   +--> Auditoria transacional
-   +--> Importador JSON controlado
+   +--> React/TypeScript/Vite
+   +--> seed.json
+   +--> localStorage
+
+Modo futuro
+Navegador --> React/TypeScript/Vite --> Django + DRF --> PostgreSQL
+                                                   +--> Auditoria transacional
+                                                   +--> Importador JSON controlado
 ```
 
 ### 3.1 Organização do backend
@@ -69,7 +69,7 @@ Django + DRF (Vercel/runtime Python)
 4. **Serviços de domínio:** transições de solicitação e movimentações ficam em serviços reutilizáveis, não apenas em views.
 5. **Saldo + movimentação:** `StockBalance` permite leitura rápida; `StockMovement` preserva a trilha de alterações.
 6. **Importação explícita:** o legado é somente leitura; o novo sistema recebe um JSON validado e só grava com `--apply`.
-7. **Frontend desacoplado:** pode ser publicado separadamente e aponta para a API por `VITE_API_BASE_URL`.
+7. **Frontend desacoplado:** no modo local não depende da API; no modo futuro aponta para a API por `VITE_API_BASE_URL`.
 
 ## 5. Autorização
 

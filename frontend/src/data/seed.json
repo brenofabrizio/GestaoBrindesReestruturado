@@ -1,0 +1,97 @@
+{
+  "users": [
+    {
+      "id": "user-admin",
+      "username": "admin",
+      "email": "admin@gestaobrindes.com",
+      "password": "GBr!29vQ#x7Lm2ZaP",
+      "first_name": "Admin",
+      "last_name": "Gestão Brindes",
+      "profile": { "id": "profile-admin", "role": "admin", "department": "Administração", "phone": "" }
+    },
+    {
+      "id": "user-approver",
+      "username": "aprovador",
+      "email": "aprovador@gestaobrindes.com",
+      "password": "Aprovador#2026",
+      "first_name": "Ana",
+      "last_name": "Aprovadora",
+      "profile": { "id": "profile-approver", "role": "approver", "department": "Comercial", "phone": "" }
+    },
+    {
+      "id": "user-operator",
+      "username": "operador",
+      "email": "operador@gestaobrindes.com",
+      "password": "Operador#2026",
+      "first_name": "Otávio",
+      "last_name": "Operações",
+      "profile": { "id": "profile-operator", "role": "operator", "department": "Operações", "phone": "" }
+    },
+    {
+      "id": "user-requester",
+      "username": "solicitante",
+      "email": "solicitante@gestaobrindes.com",
+      "password": "Solicitante#2026",
+      "first_name": "Sofia",
+      "last_name": "Solicitante",
+      "profile": { "id": "profile-requester", "role": "requester", "department": "Comercial", "phone": "" }
+    },
+    {
+      "id": "user-industry",
+      "username": "industria",
+      "email": "industria@gestaobrindes.com",
+      "password": "Industria#2026",
+      "first_name": "Iara",
+      "last_name": "Indústria",
+      "profile": { "id": "profile-industry", "role": "industry", "department": "Indústria", "phone": "" }
+    }
+  ],
+  "categories": [
+    { "id": "cat-eventos", "name": "Eventos", "is_active": true },
+    { "id": "cat-institucional", "name": "Institucional", "is_active": true },
+    { "id": "cat-onboarding", "name": "Onboarding", "is_active": true }
+  ],
+  "products": [
+    { "id": "product-caneca", "sku": "BRD-001", "name": "Caneca institucional", "description": "Caneca cerâmica com identidade visual.", "category": "cat-institucional", "unit": "unidade", "minimum_stock": 20, "is_active": true },
+    { "id": "product-caderno", "sku": "BRD-002", "name": "Caderno executivo", "description": "Caderno pautado para eventos e reuniões.", "category": "cat-eventos", "unit": "unidade", "minimum_stock": 15, "is_active": true },
+    { "id": "product-sacola", "sku": "BRD-003", "name": "Sacola ecológica", "description": "Sacola retornável de algodão.", "category": "cat-eventos", "unit": "unidade", "minimum_stock": 25, "is_active": true },
+    { "id": "product-kit", "sku": "BRD-004", "name": "Kit boas-vindas", "description": "Kit com caneca, caderno e cartão.", "category": "cat-onboarding", "unit": "kit", "minimum_stock": 10, "is_active": true },
+    { "id": "product-garrafa", "sku": "BRD-005", "name": "Garrafa térmica", "description": "Garrafa reutilizável de 500 ml.", "category": "cat-institucional", "unit": "unidade", "minimum_stock": 8, "is_active": true }
+  ],
+  "balances": [
+    { "id": "balance-caneca", "product": "product-caneca", "quantity": 120, "reserved_quantity": 12, "available_quantity": 108, "updated_at": "2026-10-01T12:00:00.000Z" },
+    { "id": "balance-caderno", "product": "product-caderno", "quantity": 80, "reserved_quantity": 20, "available_quantity": 60, "updated_at": "2026-10-01T12:00:00.000Z" },
+    { "id": "balance-sacola", "product": "product-sacola", "quantity": 45, "reserved_quantity": 0, "available_quantity": 45, "updated_at": "2026-10-01T12:00:00.000Z" },
+    { "id": "balance-kit", "product": "product-kit", "quantity": 24, "reserved_quantity": 8, "available_quantity": 16, "updated_at": "2026-10-01T12:00:00.000Z" },
+    { "id": "balance-garrafa", "product": "product-garrafa", "quantity": 6, "reserved_quantity": 0, "available_quantity": 6, "updated_at": "2026-10-01T12:00:00.000Z" }
+  ],
+  "movements": [
+    { "id": "movement-seed-001", "product": "product-caneca", "movement_type": "entry", "quantity_delta": 120, "reference": "Carga inicial", "note": "Saldo inicial de demonstração", "created_at": "2026-10-01T12:00:00.000Z" },
+    { "id": "movement-seed-002", "product": "product-kit", "movement_type": "entry", "quantity_delta": 24, "reference": "Carga inicial", "note": "Saldo inicial de demonstração", "created_at": "2026-10-01T12:00:00.000Z" }
+  ],
+  "requests": [
+    {
+      "id": "request-demo-001",
+      "requester": "user-requester",
+      "status": "submitted",
+      "justification": "Materiais para o próximo evento comercial.",
+      "rejection_reason": "",
+      "approved_by": null,
+      "items": [{ "id": "request-item-001", "product": "product-caneca", "quantity": 12, "reserved_quantity": 0, "fulfilled_quantity": 0, "remaining_quantity": 12 }],
+      "created_at": "2026-10-01T14:00:00.000Z"
+    },
+    {
+      "id": "request-demo-002",
+      "requester": "user-requester",
+      "status": "reserved",
+      "justification": "Kit de integração para novos colaboradores.",
+      "rejection_reason": "",
+      "approved_by": "user-approver",
+      "items": [{ "id": "request-item-002", "product": "product-kit", "quantity": 8, "reserved_quantity": 8, "fulfilled_quantity": 0, "remaining_quantity": 8 }],
+      "created_at": "2026-09-30T10:00:00.000Z"
+    }
+  ],
+  "audit": [
+    { "id": "audit-seed-001", "actor": null, "action": "system.seed_loaded", "entity_type": "seed", "entity_id": "initial", "metadata": { "mode": "local" }, "created_at": "2026-10-01T12:00:00.000Z" }
+  ]
+}

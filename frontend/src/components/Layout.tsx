@@ -30,7 +30,7 @@ export function Layout() {
         </div>
       </aside>
       <main className="main-content">
-        <header className="topbar"><div><span className="eyebrow">Operação</span><h1>Controle de brindes</h1></div><div className="topbar-status"><span className="status-dot" />API conectada</div></header>
+        <header className="topbar"><div><span className="eyebrow">Operação</span><h1>Controle de brindes</h1></div><div className="topbar-status"><span className="status-dot" />Modo local · JSON</div></header>
         <Outlet />
       </main>
     </div>

@@ -12,6 +12,15 @@ Sem `DATABASE_URL` ou `POSTGRES_HOST`, o projeto usa SQLite apenas como fallback
 
 ## Deploy na Vercel
 
+### Modo atual sem banco
+
+O frontend também pode funcionar sozinho, sem PostgreSQL e sem o backend Django. Nesse
+modo, `frontend/src/data/seed.json` fornece os dados iniciais e o navegador persiste as
+alterações em `localStorage`. Esse modo é adequado para demonstração e homologação local;
+não oferece segurança ou compartilhamento de dados para produção.
+
+As instruções desse modo estão em [`frontend/README.md`](frontend/README.md).
+
 O projeto contém `manage.py` e é reconhecido pela integração Django da Vercel. O runtime
 Python é provisionado pela própria Vercel; não é necessário instalar Python ou Docker na
 máquina para publicar via Git. Configure pelo menos `DJANGO_SECRET_KEY`, `DATABASE_URL` e
