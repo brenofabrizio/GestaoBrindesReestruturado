@@ -1,6 +1,13 @@
 from rest_framework import serializers
 
-from .models import Category, Product
+from .models import Category, Industry, Product
+
+
+class IndustrySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Industry
+        fields = ["id", "name", "is_active", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]
 
 
 class CategorySerializer(serializers.ModelSerializer):

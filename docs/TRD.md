@@ -1,141 +1,271 @@
-# TRD — Gestão de Brindes Reestruturado
+# TRD — Gestão de Brindes
 
 **Versão:** 1.1
-**Data:** 02/10/2026
-**Estado:** aplicação executada em modo local no navegador; paridade funcional ainda incompleta.
+**Data:** 29/09/2026
+**Escopo:** estado técnico atual, decisões, entregas e plano de conclusão
 
-## 1. Fonte da verdade e situação real
+## 1. Resumo técnico
 
-O sistema legado `GestaoBrinde` é a referência de requisitos e comportamentos. O modo atualmente conectado à interface é React + TypeScript + Vite, publicado como frontend estático e usando `frontend/src/data/seed.json` para carga inicial e `localStorage` para persistência daquele navegador.
+O sistema é um monólito modular Django com API REST versionada, autenticação JWT, PostgreSQL como banco oficial e React/TypeScript/Vite como frontend. O usuário informa que já publicou na Vercel, mas o ambiente/URL, runtime da API, banco e smoke test não foram verificados neste trabalho. Também é possível hospedar a API e/ou o sistema completo em VM seguindo os requisitos deste documento.
 
-O repositório também contém um backend Django/DRF e modelos/serviços parciais. O frontend local atual não consome essa API; por isso, endpoints e regras existentes no backend não são considerados funcionalidades disponíveis no site. A matriz completa de lacunas está em [PARIDADE-FUNCIONAL.md](./PARIDADE-FUNCIONAL.md).
+Em Vercel, o runtime Python é provisionado pelo ambiente de hospedagem. Em VM, a equipe opera o runtime Python e o servidor WSGI; Docker é opcional, útil para padronizar serviços e ambiente.
 
-Não é necessário instalar Docker ou Python para compilar/publicar o frontend atual. Isso não significa que a aplicação atual forneça armazenamento central ou autenticação segura.
+## 2. Estado atual da implementação
 
-## 2. Arquitetura ativa
+| Área | Implementado | Pendente |
+|---|---|---|
+| Backend Django | Apps `core`, `accounts`, `catalog`, `inventory`, `orders`, `audit`; API, migrations, serviços; 50 testes Django e 10 testes Node executados; build e checks locais aprovados | Validar transações críticas no PostgreSQL e homologar no ambiente publicado; Ruff local bloqueado pelo Controle de Aplicativo |
+| Autenticação | Usuário por e-mail, JWT, `/auth/me/`, refresh e autorização por perfil | Homologar matriz/isolamento com usuários reais; definir recuperação de senha e política de sessão |
+| Autorização | CD tem fila TRADE/posições globais; perfil indústria vê indústria vinculada; saldo/posições/locais globais negados ao papel industry | Alçadas por regra original, escopos por evento/warehouse e aceitação de todos os perfis |
+| Catálogo | API e tela de produtos com listagem, criação, edição, ativação/desativação lógica, busca e filtros | Paginação; manutenção de categorias na UI, se requerida; aceite dos dados reais |
+| Estoque | Saldos globais e posições por local; transferências atômicas com movimentos `−qty/+qty`; entradas/saídas atualizam posição; saída genérica QR e TRADE com chamado/NF numérica/retirada assinada | Anexo NF, PDF, eventos/cotas, ajustes UI, retornos e concorrência PostgreSQL |
+| Solicitações | API e UI para múltiplos itens, envio, aprovação/rejeição, reserva, cancelamento e atendimento parcial por item | Homologação de ponta a ponta, testes automatizados de jornada e aceite operacional |
+| Auditoria | Registro, endpoint protegido com filtros e paginação e página web conectada | Validar visibilidade/conteúdo e definir retenção/monitoramento |
+| Migração | Validação, simulação e aplicação transacional de usuários, perfis, departamentos, categorias, produtos e saldos | Pacote oficial, ensaio/reconciliação; histórico adicional depende de aprovação de escopo |
+| Frontend | React: login, dashboard, catálogo, estoque/setor/local, transferência, TRADE criação/aprovação/recebimento/retirada assinada, solicitações e auditoria | Walkthrough restante, leitor físico, PDF, eventos/feirões e restantes páginas/filas originais |
+| CI/CD | Workflow de CI e deploys anteriores registrados no GitHub; CI backend/frontend confirmado no commit `b7f58b9` | Confirmar o deploy atualmente publicado, smoke test real, backup/restore, monitoramento e rollback |
+
+## 3. Arquitetura
 
 ```text
- navegador de cada pessoa
-       |
-       +--> frontend React/TypeScript/Vite publicado na Vercel
-                |
-                +--> seed.json (modelo de dados inicial)
-                +--> adaptador frontend/src/lib/api.ts
-                         |
-                         +--> localStore.ts --> localStorage daquele navegador
+Navegador
+   |
+   | HTTPS + JWT
+   v
+React/TypeScript/Vite (Vercel, frontend/)
+   |
+   | REST /api/v1/
+   v
+Django + DRF (Vercel/runtime Python)
+   |
+   +--> PostgreSQL persistente (produção; ainda confirmar/configurar)
+   +--> Auditoria transacional
+   +--> Importador JSON controlado (JSON é formato de importação, não banco da aplicação)
 ```
 
-O nome `api.ts` é uma interface de compatibilidade; neste modo não faz chamadas de rede. A camada de armazenamento guarda JSON local e atende a interface. Os dados não são compartilhados entre usuários, dispositivos ou navegadores, não têm backup automático e podem ser removidos pelo usuário ou pelo navegador.
+Alternativa em VM: navegador → HTTPS/proxy reverso (Nginx/Caddy) → Django servido por Gunicorn → PostgreSQL. O frontend pode ser servido como arquivos estáticos nessa VM ou continuar na Vercel. Essa alternativa está documentada, mas não foi provisionada nem testada.
 
-## 3. Componentes do frontend
+### 3.1 Organização do backend
 
-| Componente | Responsabilidade atual |
+- `config/`: settings, WSGI/ASGI e roteamento.
+- `apps/core/`: health check e comandos operacionais.
+- `apps/accounts/`: usuário, perfil, autenticação e autorização.
+- `apps/catalog/`: categorias e produtos.
+- `apps/inventory/`: saldo e movimentações.
+- `apps/orders/`: solicitações, itens e workflow.
+- `apps/audit/`: eventos de auditoria.
+
+### 3.2 Organização do frontend
+
+- `src/context/AuthContext.tsx`: sessão, login, refresh e logout.
+- `src/lib/api.ts`: cliente HTTP da API Django e armazenamento local dos tokens JWT; o banco de domínio permanece no backend.
+- `src/lib/access.ts`: helpers de visibilidade por permissão.
+- `src/components/`: layout, cabeçalhos e cards.
+- `src/pages/`: login, dashboard, catálogo, estoque, solicitações e auditoria; TRADE também usa endpoints do backend.
+
+A implementação local JSON foi removida do caminho ativo; `seed.json` remanescente não contém senhas nem é importado pela aplicação. Dados `localStorage` de versões anteriores não sincronizam automaticamente.
+## 4. Decisões técnicas
+
+1. **Monólito modular:** mantém transações simples entre estoque, pedidos e auditoria sem custo operacional de microserviços.
+2. **PostgreSQL em produção:** oferece persistência e concorrência adequadas; SQLite existe somente como fallback local. Arquivo JSON local não é banco operacional em Vercel e não foi implementado como fonte de verdade. JSON continua aceito para importação/exportação validada; eventual armazenamento JSON externo exige definir atomicidade, concorrência, backup e recuperação antes de implementação.
+3. **JWT:** adequado para o frontend separado e para a comunicação via API.
+4. **Serviços de domínio:** transições de solicitação e movimentações ficam em serviços reutilizáveis, não apenas em views.
+5. **Saldo + movimentação:** `StockBalance` permite leitura rápida; `StockMovement` preserva a trilha de alterações.
+6. **Importação explícita:** o legado é somente leitura; o novo sistema recebe um JSON validado e só grava com `--apply`.
+7. **Frontend desacoplado:** pode ser publicado separadamente e aponta para a API por `VITE_API_BASE_URL`.
+
+## 5. Autorização
+
+As permissões são definidas atualmente em `ROLE_PERMISSIONS`:
+
+| Domínio | Permissões principais |
 |---|---|
-| `src/App.tsx` | Rotas ativas: dashboard, catálogo, estoque, solicitações, auditoria e gestão do sistema |
-| `src/context/AuthContext.tsx` | Sessão local e usuário autenticado |
-| `src/lib/api.ts` | Adaptador comum consumido pelas páginas; aponta para o modo local |
-| `src/lib/localStore.ts` | Leitura/gravação de JSON no navegador, dados de demonstração e regras locais |
-| `src/lib/access.ts` | Consulta às permissões armazenadas localmente para controlar menus/ações na interface |
-| `src/data/seed.json` | Contas, produtos, saldos, movimentos, solicitações e referências de demonstração |
-| `src/pages/ManagementPage.tsx` | Gestão inicial local de usuários, cadastros auxiliares e permissões |
+| Dashboard | `dashboard.view` |
+| Catálogo | `catalog.view`, `catalog.manage` |
+| Estoque | `stock.view`, `stock.entry`, `stock.exit`, `stock.adjust`, `stock.transfer`, `stock.receive`, `stock.exit_confirm` |
+| Solicitações | `requests.create`, `requests.view_own`, `requests.view_department`, `requests.view_all`, `requests.approve`, `requests.process`, `requests.cancel_any` |
+| Auditoria | `audit.view` |
 
-Rotas existentes não cobrem a lista completa de páginas do legado. A lista de módulos a implementar está em `PARIDADE-FUNCIONAL.md` e deve orientar novas rotas/componentes.
+Regras de escopo:
 
-## 4. Persistência local e modelo atual
+- `view_own`: filtra por `requester` igual ao usuário autenticado.
+- `view_department`: filtra pelo departamento do perfil do usuário.
+- `view_all`: permite leitura global.
+- Cancelamento próprio é permitido apenas para o solicitante e em estados elegíveis; cancelamento global exige `requests.cancel_any`.
+- O backend é a autoridade final. A ocultação de menus no React é apenas UX.
 
-Chave principal do banco local: `gestao_brindes_json_database_v1`. Sessão: `gestao_brindes_local_user`. O banco em memória é inicializado a partir de `seed.json` quando não existe conteúdo salvo.
+Pendência técnica: transformar a matriz em entidades persistidas somente se houver necessidade de administrar permissões sem nova publicação.
 
-Coleções atuais:
+## 6. Modelo de dados resumido
 
-- `users` e `rolePermissions`;
-- `categories`, `departments`, `industries`, `locations`, `suppliers`;
-- `products`, `balances`, `movements`;
-- `requests` e `audit`.
+### Usuários
 
-Os cadastros adicionados usam IDs locais; produto e saldo continuam modelos simplificados. Faltam, entre outros, posições por local, regras/histórico de aprovação, operações de compra TRADE, entradas contra NF, fila física do CD, deliveries/protocolos, assinatura, eventos, notificações e configurações.
+- `accounts.User`: e-mail único, nome, ativo e credenciais.
+- `accounts.UserProfile`: papel, departamento, telefone e vínculo opcional `industry_id` para escopo server-side.
 
-Uma mudança do formato de `seed.json` só atualiza usuários com armazenamento vazio. Navegadores já utilizados podem manter uma versão anterior do JSON; mudanças de esquema devem incluir migração local versionada e preservar os dados existentes. O carregamento deve tratar JSON inválido sem sobrescrever silenciosamente dados recuperáveis.
+### Catálogo
 
-## 5. Autenticação, permissões e segurança
+- `catalog.Industry`: nome e ativo; manutenção por API `catalog.manage`.
+- `catalog.Category`: nome e ativo.
+- `catalog.Product`: SKU, nome, descrição, categoria, unidade, estoque mínimo e ativo.
 
-O login atual compara e-mail/senha mantidos no JSON local. A cópia local de credenciais não tem hash ou proteção de servidor; qualquer código e dado embarcado no frontend é inspecionável pelo usuário. Permissões locais melhoram a consistência dos fluxos de demonstração, mas não resistem à alteração do navegador ou chamada direta do código.
+### Estoque
 
-Portanto:
+- `inventory.StockLocation`, `StockPosition` e `StockTransfer`: locais, posição por produto/local e transferências auditáveis.
+- `inventory.StockBalance`: quantidade física global e reservada por produto.
+- `inventory.StockExitOrder`: produto, indústria/local opcional, quantidade, solicitante, token QR, confirmação/cancelamento.
+- `inventory.StockMovement`: produto, indústria/local/destino opcional, tipo/delta, transferência, referência, autor e data.
 
-- não usar as contas locais como credenciais corporativas ou de produção;
-- não colocar segredos pessoais/reais em `seed.json`;
-- o modo local deve ser tratado como protótipo/demonstração individual;
-- para operação multiusuário, reimplementar autenticação e autorização no servidor e mover o armazenamento para uma fonte persistente central;
-- validar escopo por usuário, departamento e indústria no servidor quando essa arquitetura for adotada.
+### Solicitações
 
-## 6. Regras de negócio a preservar
+- `orders.GiftRequest`/`GiftRequestItem`: solicitação interna do frontend reconstruído.
+- `orders.TradeRequest`/`TradeRequestItem`: fluxo TRADE com indústria, chamado, NF numérica e recebimento por linha.
+- `orders.TradeRequestHistory`: ator, transições e comentários.
+- `orders.TradeDelivery`/`TradeDeliveryItem`: protocolo TRADE sequencial, recebedor, assinatura PNG registrada no banco e saldo após baixa.
 
-As regras devem ser extraídas do legado e mantidas no adaptador de domínio, não espalhadas por componentes React. Escopo mínimo:
+### Auditoria
 
-- transições válidas de solicitações e motivo obrigatório para rejeição;
-- quantidade solicitada, reservada, atendida e restante por item;
-- saldo disponível igual ao físico menos reservas;
-- bloqueio de baixa além do saldo/reserva;
-- solicitação e cancelamento próprios distintos de ações administrativas;
-- registro de saída pelo gestor separado de confirmação pelo CD;
-- transferência reduz a origem e aumenta o destino sem alterar o total;
-- rastreabilidade por ator, data, entidade, referência e movimento correspondente;
-- regras diferentes por perfil, departamento e indústria.
+- `audit.AuditEvent`: ator, ação, tipo/id da entidade, metadados JSON, request id e data.
 
-No modo local, essas regras são úteis para validar a experiência, mas não substituem transações e controles de concorrência de servidor.
+## 7. Regras transacionais críticas
 
-## 7. Diferenças entre os modos
+### Reserva
 
-| Capacidade | LocalStorage atual | Necessária para paridade compartilhada |
+1. Bloquear a solicitação e os saldos relacionados.
+2. Calcular `available = quantity - reserved_quantity`.
+3. Rejeitar se o disponível for menor que o restante solicitado.
+4. Incrementar reserva no saldo e no item.
+5. Registrar evento de auditoria.
+
+### Atendimento
+
+1. Aceitar solicitação reservada ou parcialmente atendida.
+2. Validar quantidade por item contra o restante.
+3. Registrar saída com delta negativo.
+4. Reduzir reserva e aumentar quantidade atendida.
+5. Definir `partially_fulfilled` ou `fulfilled`.
+6. Registrar evento de auditoria.
+
+### Cancelamento
+
+1. Bloquear solicitação e itens.
+2. Liberar toda reserva não atendida.
+3. Marcar como cancelada.
+4. Registrar evento de auditoria.
+
+Todas as etapas ficam dentro de `transaction.atomic`; saldos relacionados usam `select_for_update`.
+
+## 8. Contrato de API atual
+
+Base: `/api/v1/`
+
+- `GET /health/`
+- `POST /auth/token/`
+- `POST /auth/token/refresh/`
+- `GET /auth/me/`
+- `GET|PATCH /auth/profiles/{id}/` (apenas admin; atribui perfil/indústria)
+- `GET|POST /catalog/industries/`
+- `GET|POST /catalog/categories/`
+- `GET|POST /catalog/products/`
+- `GET /inventory/balances/` (saldo físico global; não concedido ao papel industry)
+- `GET /inventory/industry-balances/` (agregado por movimentos; escopo da indústria vinculada aplicado no backend)
+- `GET|POST /inventory/locations/` (leitura CD/transfer; escrita apenas admin)
+- `GET /inventory/positions/` (posições CD/evento; industry sem acesso global)
+- `GET|POST /inventory/transfers/` (saldo total invariável; movimentos `−qty/+qty`)
+- `GET|POST /inventory/movements/` (API rejeita saída imediata; usar ordem QR em duas etapas)
+- `GET|POST /inventory/exit-orders/` (autorização/listagem por perfil)
+- `POST /inventory/exit-orders/{id}/cancel/` (autor/admin; libera reserva)
+- `POST /inventory/exit-orders/confirm-by-qr/` (CD envia o token escaneado)
+- `GET|POST /orders/requests/`
+- `POST /orders/requests/{id}/submit/`
+- `POST /orders/requests/{id}/approve/`
+- `POST /orders/requests/{id}/reject/` com `{ "reason": "..." }`
+- `POST /orders/requests/{id}/reserve/`
+- `POST /orders/requests/{id}/fulfill/` com itens opcionais `{ "items": [{ "item_id": "...", "quantity": 1 }] }`
+- `POST /orders/requests/{id}/cancel/`
+- `GET|POST /trade/requests/` (fluxo separado por indústria)
+- `POST /trade/requests/{id}/approve/` (chamado obrigatório)
+- `POST /trade/requests/{id}/reject/` (motivo obrigatório)
+- `POST /trade/requests/{id}/receive/` (NF numérica e quantidades por item)
+- `POST /trade/requests/{id}/withdraw/` (public_code QR, recebedor, assinatura PNG e quantidades)
+- `GET /audit/events/`
+- `GET /api/docs/`
+- `GET /api/schema/`
+
+Pendências de contrato: paginação também no catálogo, documentação padronizada de filtros/erros e endpoints específicos para dashboard/relatórios, conforme prioridade do produto.
+
+## 9. Migração do legado
+
+Origem inspecionada em modo somente leitura no commit `857747a199dc73d2e7ab1f0cd872424a59ca46c0`.
+
+Mapeamento atual:
+
+| Origem | Destino |
+|---|---|
+| `users` | `accounts.User` + `UserProfile` |
+| `roles` | `UserProfile.role` |
+| `departments` | `UserProfile.department` |
+| `categories` | `catalog.Category` |
+| `items` | `catalog.Product` |
+| `stock` | `inventory.StockBalance` global; `StockPosition` por local será preenchida no backfill do schema |
+| `stock_movements` | `inventory.StockMovement` com indústria/local; importação histórica não implementada |
+| solicitações TRADE | `orders.TradeRequest`/itens/histórico/entregas; migração do legado ainda pendente |
+| solicitações internas | `orders.GiftRequest`/itens; completar campos/estados e migrar histórico |
+| auditoria | `audit.AuditEvent`; importação histórica pendente |
+
+Comandos previstos:
+
+```powershell
+python manage.py import_legacy docs/legacy-import.example.json
+python manage.py import_legacy caminho/para/pacote.json --apply
+```
+
+O primeiro comando valida e simula; o segundo grava dentro de uma transação. Antes da aplicação oficial, gerar contagens de usuários, produtos, categorias, saldo físico e saldo reservado e comparar com a origem.
+
+## 10. Segurança e operação
+
+Obrigatório em produção:
+
+- `DJANGO_SECRET_KEY` forte e fora do repositório.
+- `DATABASE_URL` apontando para PostgreSQL persistente.
+- `DJANGO_DEBUG=false`.
+- `DJANGO_ALLOWED_HOSTS` restrito aos domínios usados.
+- `CORS_ALLOWED_ORIGINS` restrito ao frontend.
+- Banco de preview separado do banco de produção.
+- Backup e política de retenção definidos pelo provedor.
+- Logs sem senha, token ou dados pessoais desnecessários.
+
+Implementado no repositório: CI de backend/frontend, configuração de produção validada por checks e documentação de go-live. Pendente no ambiente real: smoke test pós-deploy, monitoramento de erros, rollback testado, confirmação de backups e teste PostgreSQL concorrente de reserva/atendimento.
+
+## 11. Verificação técnica já realizada
+
+- Nesta atualização documental: backend `25 passed in 7.95s`; Ruff `All checks passed!`; `manage.py check` sem problemas; `makemigrations --check --dry-run` sem mudanças; `npm run build` concluído com sucesso (TypeScript/Vite).
+- CI remoto do commit `b7f58b9` teve checks backend/frontend aprovados, conforme verificação registrada anteriormente.
+- Esses resultados são evidência de código/CI, não comprovam banco, URL, variáveis ou estado do deploy atual da Vercel.
+
+## 12. Status técnico por sprint
+
+| Sprint | Implementado no repositório | Falta / dependência para concluir |
 |---|---|---|
-| Sem banco/Docker/Python local | Sim | Continua possível no computador do usuário |
-| Alteração persiste ao recarregar o mesmo navegador | Sim | Sim |
-| Vários usuários veem os mesmos dados | Não | Serviço central e persistente |
-| Credenciais protegidas contra inspeção do browser | Não | Autenticação no servidor e segredos fora do bundle |
-| Operações simultâneas confiáveis | Não | Transações/controle de concorrência |
-| Envio de e-mail, Lecom e processamento agendado | Não | Integração/backend ou serviço externo |
-| Backup central e restauração administrativa | Não | Serviço e política de backup |
+| 0 — Fundação | Arquitetura, requisitos, contratos e checklist documentados | Confirmar Vercel/domínios/runtime, persistência durável, responsáveis, regras finais e export legado |
+| 1 — Acesso | JWT, perfis, permissões e escopo de solicitações; testes automatizados | Homologação com contas reais, matriz aprovada e política de sessão/recuperação |
+| 2 — Catálogo/estoque | CRUD de produtos, busca/filtros, saldos, movimentações, reservas e validações | Paginação e testes de concorrência em PostgreSQL; aceitar histórico/transferência com negócio |
+| 3 — Solicitações | UI/API do ciclo principal, múltiplos itens, aprovação, rejeição, reserva, parcial e cancelamento | Teste de jornada no ambiente publicado e aceite de usuário |
+| 4 — Auditoria/migração | Auditoria filtrável/paginada e importador transacional com simulação | Export oficial, ensaio/reconciliação e decisão sobre histórico legado |
+| 5 — Deploy/operação | Configuração de produção, CI, documentação operacional; usuário relata deploy Vercel | Verificação independente, DB persistente, env vars, migrations, smoke, backup/restore, rollback e monitoramento |
 
-## 8. Plano técnico de paridade
+## 13. Requisitos de VM
 
-### P0 — Fundação local
+Sizing inicial para implantação pequena; revisar por teste de carga e métricas reais.
 
-- Acoplar gestão de usuários, referências e permissões ao adaptador JSON.
-- Aplicar permissões às operações locais e corrigir recortes de solicitações.
-- Versionar migrações do JSON local e impedir perda silenciosa de dados.
+| Uso | CPU | RAM | Disco |
+|---|---:|---:|---:|
+| Dev/homologação | 2 vCPU | 4 GB | 40 GB SSD persistente |
+| Produção inicial recomendada | 4 vCPU | 8 GB | 100 GB SSD/NVMe; PostgreSQL preferencialmente gerenciado/separado |
+| Piloto tudo-em-um | 4 vCPU | 8 GB | 150 GB SSD/NVMe, com DB e API na VM; não é alta disponibilidade |
 
-### P1 — Catálogo e estoque
+**Software:** Ubuntu Server 24.04 LTS x86_64; Python 3.13 e Django 5.2; PostgreSQL 16; Node.js 22 somente para build do frontend; Gunicorn como WSGI; Nginx ou Caddy como proxy TLS. `gunicorn` não consta nas dependências atuais e precisa ser adicionado/configurado/testado antes da hospedagem da API em VM.
 
-- Completar entidades de produto, imagem/histórico e posição por local.
-- Introduzir tipos de movimento, NF/referência e fluxos distintos de registro/confirmação.
-- Implementar estorno e transferência com integridade de saldos.
+**Rede/segurança/operação:** publicar somente 443 (e 80 para redirecionamento/ACME); restringir SSH por IP/chave; não expor 5432; usar segredos fora do Git; banco persistente; backup cifrado fora da VM com restore ensaiado; monitorar disco, CPU, RAM, disponibilidade e logs; manter preview e produção isolados. Definir RPO/RTO, retenção e responsável operacional. O sizing não implica HA nem comprova adequação a qualquer volume de usuários.
 
-### P2 — Solicitações internas
-
-- Adicionar estado/histórico formal, aprovações e regras configuráveis.
-- Criar filas de separação/entrega e comprovantes.
-- Aplicar escopos de acesso por perfil/departamento/indústria.
-
-### P3 — TRADE e eventos
-
-- Modelar compra, recebimento, QR, assinatura, protocolo e evento.
-- Definir quais passos são demonstráveis em modo local e quais exigem integração externa.
-
-### P4 — Relatórios e administração
-
-- Relatórios/exportação, importação simulada/validada, auditoria completa, notificações, configurações e cópia/restauração.
-
-### P5 — Persistência compartilhada (fase futura)
-
-- Substituir o adaptador local por serviço central sem alterar os contratos usados pelas páginas.
-- Implementar identidade, autorização, transações, backups e integrações em servidor.
-- Importar e reconciliar dados somente após ensaio em cópia do legado.
-
-## 9. Critérios técnicos de pronto
-
-- Rota e controles correspondentes existem e são acessíveis pelos perfis autorizados.
-- Regras inválidas são rejeitadas no adaptador de domínio; a interface não é a única proteção.
-- Escrita gera auditoria quando aplicável e não deixa saldos incoerentes.
-- Migração local de esquema preserva dados anteriores.
-- Documentação diferencia explicitamente código presente, frontend conectado e serviço externo disponível.
-- Para marcar paridade, validar fluxo equivalente no legado e no reestruturado com cenários por perfil.
+**Pré-requisitos para VM:** revisar `docker-compose.yml` antes de produção (as credenciais atuais são apenas locais e não devem ser reutilizadas); preparar serviço de aplicação/health check, proxy/TLS, migrations sob processo controlado, firewall, backups e runbook de rollback. O frontend pode permanecer na Vercel via `VITE_API_BASE_URL` apontando à API da VM.

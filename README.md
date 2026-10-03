@@ -1,6 +1,6 @@
-# Gestão Brindes — API
+# Gestão Brindes — aplicação reestruturada
 
-Fundação do backend do sistema Gestão Brindes, organizada como um monólito modular Django.
+Aplicação React/Django organizada como monólito modular; ainda não há paridade total com o sistema original.
 
 ## Requisitos
 
@@ -12,14 +12,9 @@ Sem `DATABASE_URL` ou `POSTGRES_HOST`, o projeto usa SQLite apenas como fallback
 
 ## Deploy na Vercel
 
-### Modo atual sem banco
+### Frontend conectado à API
 
-O frontend também pode funcionar sozinho, sem PostgreSQL e sem o backend Django. Nesse
-modo, `frontend/src/data/seed.json` fornece os dados iniciais e o navegador persiste as
-alterações em `localStorage`. Esse modo é adequado para demonstração e homologação local;
-não oferece segurança ou compartilhamento de dados para produção.
-
-As instruções desse modo estão em [`frontend/README.md`](frontend/README.md).
+O frontend ativo consome a API Django em `/api/v1`; em desenvolvimento Vite encaminha `/api` ao servidor local. O PostgreSQL do backend é a fonte de verdade. O modo antigo de demonstração com JSON/localStorage não é mais carregado pelo frontend atual e seus dados não são sincronizados automaticamente; veja [`frontend/README.md`](frontend/README.md) antes de limpar dados locais existentes.
 
 O projeto contém `manage.py` e é reconhecido pela integração Django da Vercel. O runtime
 Python é provisionado pela própria Vercel; não é necessário instalar Python ou Docker na
@@ -56,16 +51,22 @@ Endpoints iniciais:
 - `POST /api/v1/auth/token/`
 - `POST /api/v1/auth/token/refresh/`
 - `GET /api/v1/auth/me/`
+- `GET|POST /api/v1/catalog/industries/`
 - `GET|POST /api/v1/catalog/categories/`
 - `GET|POST /api/v1/catalog/products/`
-- `GET /api/v1/inventory/balances/`
-- `GET|POST /api/v1/inventory/movements/`
-- `GET|POST /api/v1/orders/requests/`
-- `POST /api/v1/orders/requests/{id}/submit/`
-- `POST /api/v1/orders/requests/{id}/approve/`
-- `POST /api/v1/orders/requests/{id}/reserve/`
-- `POST /api/v1/orders/requests/{id}/fulfill/`
-- `GET /api/v1/audit/events/` (operadores)
+- `GET /api/v1/inventory/balances/` (saldo físico global)
+- `GET /api/v1/inventory/industry-balances/` (filtro pela indústria do perfil)
+- `GET|POST /api/v1/inventory/locations/` (escrita admin)
+- `GET /api/v1/inventory/positions/`
+- `GET|POST /api/v1/inventory/transfers/` (transferência não reduz saldo total)
+- `GET|POST /api/v1/inventory/movements/` (saída direta rejeitada; use ordem QR)
+- `GET|POST /api/v1/inventory/exit-orders/`
+- `POST /api/v1/inventory/exit-orders/{id}/cancel/`
+- `POST /api/v1/inventory/exit-orders/confirm-by-qr/`
+- `GET|POST /api/v1/orders/requests/` (solicitações internas)
+- `GET|POST /api/v1/trade/requests/` (TRADE)
+- `POST /api/v1/trade/requests/{id}/approve/`, `/reject/`, `/receive/`, `/withdraw/`
+- `GET /api/v1/audit/events/` (operadores autorizados)
 
 O frontend está em `frontend/` e pode ser publicado como um projeto Vercel separado
 com Root Directory `frontend`. Ele usa `VITE_API_BASE_URL` para apontar para esta API.
@@ -77,6 +78,9 @@ com Root Directory `frontend`. Ele usa `VITE_API_BASE_URL` para apontar para est
 - `config/`: configuração do projeto Django.
 - `apps/core/`: recursos transversais e health check.
 - `apps/accounts/`: usuários, autenticação e perfis.
-- `docs/`: decisões e arquitetura.
+- `docs/`: decisões, PRD/TRD, deploy e plano de paridade funcional.
+  - [Índice de documentação](docs/INDEX.md)
+  - [PRD](docs/PRD.md) · [TRD](docs/TRD.md) · [Go-live](docs/GO-LIVE.md)
+  - [Comparação e sprints de paridade](docs/FEATURE-PARITY.md)
 
-Os próximos módulos serão adicionados sem transformar o projeto em microserviços: catálogo, estoque, solicitações e auditoria permanecem dentro do mesmo deploy e banco transacional.
+Os módulos existentes permanecem no mesmo deploy e banco transacional. A implementação ainda não cobre todo o sistema original; acompanhe os módulos e sprints pendentes em [`docs/FEATURE-PARITY.md`](docs/FEATURE-PARITY.md).

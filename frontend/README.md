@@ -1,27 +1,11 @@
 # Gestão Brindes Web
 
-Frontend React + TypeScript com modo local funcional para uso sem banco de dados.
+Frontend React + TypeScript conectado à API Django. O PostgreSQL configurado no backend é a fonte de verdade dos dados operacionais.
 
-## Modo atual: JSON + localStorage
+## Executar localmente
 
-Por enquanto, o sistema roda sem PostgreSQL e sem API Django:
-
-- `src/data/seed.json` contém os dados iniciais de usuários, catálogo, estoque e solicitações.
-- `localStorage` mantém sessão, novos produtos, movimentações, solicitações e auditoria no navegador.
-- As regras de aprovação, reserva, atendimento parcial e cancelamento são executadas no frontend.
-- Cada navegador possui sua própria cópia dos dados; isso não substitui um banco compartilhado.
-
-Contas temporárias de demonstração:
-
-| Perfil | E-mail | Senha |
-|---|---|---|
-| Administrador | `admin@gestaobrindes.com` | `GBr!29vQ#x7Lm2ZaP` |
-| Solicitante | `solicitante@gestaobrindes.com` | `Solicitante#2026` |
-| Operador | `operador@gestaobrindes.com` | `Operador#2026` |
-
-Essas credenciais são apenas para o modo local/demonstração. Não devem ser usadas como autenticação de produção.
-
-## Executar
+1. Configure e inicie a API Django em `http://127.0.0.1:8000` conforme o README da raiz.
+2. Na pasta `frontend/`:
 
 ```powershell
 npm install
@@ -29,22 +13,14 @@ Copy-Item .env.example .env
 npm run dev
 ```
 
-Por padrão, a aplicação usa `/api/v1` no mesmo domínio. Para desenvolvimento
-separado, defina `VITE_API_BASE_URL` apontando para a API publicada.
+O proxy Vite encaminha `/api/*` para Django. Para apontar a um backend em outro host, defina `VITE_API_BASE_URL` com a URL base terminada em `/api/v1`.
 
 ## Deploy
 
-O diretório pode ser publicado como um projeto Vercel com Root Directory `frontend`.
-No estado atual, não é necessário configurar `VITE_API_BASE_URL`: o build usa os dados
-locais. Quando o backend voltar a ser usado, será necessário trocar o adaptador de dados
-em `src/lib/api.ts` e configurar a URL da API, além de migrar o conteúdo do localStorage.
+Publique este diretório como projeto frontend separado, com Root Directory `frontend`, e configure `VITE_API_BASE_URL` para a API do ambiente correspondente. Preview e produção devem usar bancos distintos.
 
-## Limpar a base local
+## Migração dos dados do modo local legado
 
-Para começar novamente com o `seed.json`, abra o console do navegador e execute:
+Versões anteriores guardavam dados e credenciais de demonstração em `seed.json` e no `localStorage` de cada navegador. O frontend atual não lê nem sincroniza esse armazenamento; os dados locais existentes não são enviados automaticamente ao PostgreSQL. Preserve-os antes de limpar os dados do navegador e faça a migração apenas por um processo de exportação/transformação aprovado. O importador do backend aceita o formato documentado de carga legada, não promete importar diretamente o formato interno do `localStorage`.
 
-```js
-localStorage.removeItem("gestao_brindes_json_database_v1");
-localStorage.removeItem("gestao_brindes_local_access");
-location.reload();
-```
+Contas para desenvolvimento devem ser provisionadas no backend por canal local seguro. Não há senhas padrão ou credenciais de demonstração publicadas no frontend.

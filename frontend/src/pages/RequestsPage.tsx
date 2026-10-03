@@ -4,6 +4,7 @@ import { PageHeader } from "../components/Card";
 import { Empty, StatusBadge } from "./DashboardPage";
 import { useAuth } from "../context/AuthContext";
 import { api } from "../lib/api";
+import { requestCapabilities } from "../lib/access";
 import type { GiftRequest, Product } from "../types";
 
 type CartLine = { product: string; quantity: number };
@@ -24,10 +25,7 @@ export function RequestsPage() {
   const [rejectReasons, setRejectReasons] = useState<Record<string, string>>({});
   const [fulfillAmounts, setFulfillAmounts] = useState<Record<string, Record<string, number>>>({});
   const [busyId, setBusyId] = useState("");
-  const role = user?.profile.role || "";
-  const canCreate = ["requester", "approver", "admin"].includes(role);
-  const canProcess = ["operations", "operator", "approver", "admin"].includes(role);
-  const canCancelAny = ["approver", "admin"].includes(role);
+  const { canCreate, canApprove, canProcess, canCancelAny } = requestCapabilities(user);
   const reload = () => Promise.all([api.requests(), api.products()]).then(([rows, items]) => { setRequests(rows); setProducts(items); });
 
   useEffect(() => { reload().catch((err) => setError(err.message)); }, []);
@@ -97,12 +95,12 @@ export function RequestsPage() {
               {selectedId === request.id && <div className="request-detail"><h4>Itens e quantidades</h4>
                 {request.items.map((item) => <div className="detail-line" key={item.id}><span>{productName(item.product)}</span><span>Solicitado {item.quantity} · Reservado {item.reserved_quantity} · Atendido {item.fulfilled_quantity}</span>{["reserved", "partially_fulfilled"].includes(request.status) && canProcess && <input aria-label={`Quantidade de ${productName(item.product)} para atender`} type="number" min="0" max={item.reserved_quantity} value={fulfillAmounts[request.id]?.[item.id] ?? 0} onChange={(event) => setFulfillAmounts({ ...fulfillAmounts, [request.id]: { ...fulfillAmounts[request.id], [item.id]: Number(event.target.value) } })} />}</div>)}
                 {request.rejection_reason && <p className="rejection-reason">Motivo da rejeição: {request.rejection_reason}</p>}
-                {canProcess && request.status === "submitted" && <div className="reject-form"><label>Motivo da rejeição<input value={rejectReasons[request.id] || ""} onChange={(event) => setRejectReasons({ ...rejectReasons, [request.id]: event.target.value })} placeholder="Obrigatório para rejeitar" /></label><button className="icon-button danger" disabled={(rejectReasons[request.id] || "").trim().length < 3 || busyId === request.id} onClick={() => action(request.id, "reject", { reason: rejectReasons[request.id]?.trim() })}>Rejeitar</button></div>}
+                {canApprove && request.status === "submitted" && <div className="reject-form"><label>Motivo da rejeição<input value={rejectReasons[request.id] || ""} onChange={(event) => setRejectReasons({ ...rejectReasons, [request.id]: event.target.value })} placeholder="Obrigatório para rejeitar" /></label><button className="icon-button danger" disabled={(rejectReasons[request.id] || "").trim().length < 3 || busyId === request.id} onClick={() => action(request.id, "reject", { reason: rejectReasons[request.id]?.trim() })}>Rejeitar</button></div>}
               </div>}
             </div>
             <div className="request-actions"><StatusBadge status={request.status} /><button className="icon-button" aria-label={selectedId === request.id ? "Fechar detalhes" : "Ver detalhes"} onClick={() => setSelectedId(selectedId === request.id ? "" : request.id)}>{selectedId === request.id ? <ChevronUp size={15} /> : <ChevronDown size={15} />}</button>
               {request.status === "draft" && <button className="icon-button" title="Enviar" disabled={busyId === request.id} onClick={() => action(request.id, "submit")}><Send size={15} /></button>}
-              {request.status === "submitted" && canProcess && <button className="icon-button" title="Aprovar" disabled={busyId === request.id} onClick={() => action(request.id, "approve")}><Check size={15} /></button>}
+              {request.status === "submitted" && canApprove && <button className="icon-button" title="Aprovar" disabled={busyId === request.id} onClick={() => action(request.id, "approve")}><Check size={15} /></button>}
               {request.status === "approved" && canProcess && <button className="icon-button" title="Reservar" disabled={busyId === request.id} onClick={() => action(request.id, "reserve")}><ClipboardList size={15} /></button>}
               {["reserved", "partially_fulfilled"].includes(request.status) && canProcess && <button className="small-button" disabled={busyId === request.id || !request.items.some((item) => (fulfillAmounts[request.id]?.[item.id] || 0) > 0)} onClick={() => action(request.id, "fulfill", { items: request.items.map((item) => ({ item_id: item.id, quantity: fulfillAmounts[request.id]?.[item.id] || 0 })) })}>Atender quantidades</button>}
               {canCancel(request) && <button className="icon-button danger" title="Cancelar" disabled={busyId === request.id} onClick={() => { if (window.confirm("Cancelar esta solicitação e liberar as reservas pendentes?")) void action(request.id, "cancel"); }}><X size={15} /></button>}

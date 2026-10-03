@@ -38,6 +38,13 @@ class UserProfile(models.Model):
     role = models.CharField(max_length=20, choices=Role.choices, default=Role.REQUESTER)
     department = models.CharField("departamento", max_length=120, blank=True)
     phone = models.CharField("telefone", max_length=30, blank=True)
+    industry = models.ForeignKey(
+        "catalog.Industry",
+        on_delete=models.SET_NULL,
+        related_name="user_profiles",
+        null=True,
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

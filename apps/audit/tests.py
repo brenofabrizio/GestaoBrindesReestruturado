@@ -6,11 +6,13 @@ from apps.accounts.models import User
 from .models import AuditEvent
 from .services import record_event
 
+TEST_PASSWORD = "not-a-real-credential-for-tests"
+
 
 class AuditTests(APITestCase):
     def test_event_records_actor_and_entity(self):
         actor = User.objects.create_user(
-            email="audit@example.com", username="audit", password="strong-password-123"
+            email="audit@example.com", username="audit", password=TEST_PASSWORD
         )
         event = record_event(action="test.created", entity=actor, actor=actor)
 
@@ -22,7 +24,7 @@ class AuditTests(APITestCase):
         actor = User.objects.create_user(
             email="operator@example.com",
             username="operator",
-            password="strong-password-123",
+            password=TEST_PASSWORD,
             is_superuser=True,
         )
         record_event(action="catalog.product_created", entity=actor, actor=actor)
@@ -46,7 +48,7 @@ class AuditTests(APITestCase):
         actor = User.objects.create_user(
             email="filter-admin@example.com",
             username="filter-admin",
-            password="strong-password-123",
+            password=TEST_PASSWORD,
             is_superuser=True,
         )
         self.client.force_authenticate(actor)

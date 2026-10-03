@@ -1,129 +1,299 @@
-# PRD — Gestão de Brindes Reestruturado
+# PRD — Gestão de Brindes
 
 **Versão:** 1.1
-**Data:** 02/10/2026
-**Status:** Reestruturação em andamento; a versão atual ainda não tem paridade com o Gestão de Brindes legado.
+**Data:** 29/09/2026
+**Status:** Fluxos principais implementados no código; homologação e configuração de produção pendentes. O usuário informa que publicou na Vercel, mas o deploy não foi verificado neste trabalho.
 
-## 1. Objetivo e princípio de paridade
+## 1. Visão do produto
 
-O projeto reestruturado deve reproduzir as funcionalidades e regras de negócio do sistema Gestão de Brindes existente, usando uma stack diferente. O legado é a referência funcional e permanece somente para consulta durante a migração.
+O Gestão de Brindes centraliza catálogo, estoque e solicitações de brindes em um fluxo controlado por perfil, departamento e trilha de auditoria. O produto substitui o uso fragmentado do sistema legado por uma API transacional e uma aplicação web responsiva.
 
-Não reduzir o escopo a login, catálogo, saldo e solicitação básica. A paridade inclui usuários e perfis, cadastros, estoque, solicitações internas, TRADE, aprovações, atendimento, eventos, retirada, comprovantes, relatórios, importação, notificações, auditoria e configurações, respeitando os limites de infraestrutura desta fase.
+O primeiro release deve permitir que um solicitante escolha itens, envie uma solicitação e acompanhe seu status; que aprovadores validem solicitações do seu escopo; e que a operação reserve, atenda parcial ou totalmente e mantenha o estoque rastreável.
 
-O inventário comparativo e o estado real por módulo estão em [PARIDADE-FUNCIONAL.md](./PARIDADE-FUNCIONAL.md). Um módulo só é considerado entregue se estiver acessível na interface, funcionar no modo ativo e aplicar suas regras de negócio.
+## 2. Objetivos
 
-## 2. Decisão atual de armazenamento
+- Reduzir solicitações manuais e perda de rastreabilidade.
+- Evitar aprovação, reserva ou baixa de estoque fora do escopo autorizado.
+- Exibir saldo disponível com distinção entre quantidade física e reservada.
+- Migrar os dados essenciais do legado sem alterar a origem.
+- Publicar uma primeira versão web na Vercel com banco PostgreSQL persistente.
 
-Por enquanto, o sistema roda como frontend React/TypeScript na Vercel, com `seed.json` para carga inicial e `localStorage` para alterações locais. Não instalar Docker nem depender de Python para esta fase.
+## 3. Fora do escopo do primeiro release
 
-Essa decisão permite desenvolver e demonstrar fluxos sem banco, mas não cria um banco compartilhado: cada navegador mantém sua própria cópia. Mudanças não aparecem automaticamente para outras pessoas ou dispositivos; limpar os dados do navegador pode apagá-las. Credenciais e permissões executadas somente no frontend não formam autenticação segura de produção.
+- Aplicativo nativo/Tauri.
+- Integração com ERP, compras ou transportadora.
+- Notificações por e-mail, WhatsApp ou push.
+- Upload de anexos e assinatura eletrônica.
+- Configuração de permissões por tela feita pelo próprio administrador.
+- Importação completa do histórico de movimentações, solicitações e auditoria do legado.
 
-Assim, a meta imediata é recuperar a paridade de interface e de regras no modo local, documentando operações que dependem de serviço externo. Persistência multiusuário, e-mail real e integrações externas ficam condicionados à futura inclusão de um serviço central, sem alterar o escopo funcional desejado.
+## 4. Perfis e responsabilidades
 
-## 3. Usuários e perfis
+| Perfil | Responsabilidade principal | Visibilidade esperada |
+|---|---|---|
+| Administrador | Configurar e supervisionar o sistema | Todos os dados e operações |
+| Aprovador | Analisar solicitações do escopo de aprovação | Próprio departamento e, quando autorizado, todos |
+| Operador de estoque | Cadastrar/atualizar catálogo, movimentar estoque e atender solicitações | Estoque e solicitações operacionais |
+| Solicitante | Criar e acompanhar pedidos próprios | Catálogo e próprios pedidos |
+| Indústria | Consultar catálogo e informações autorizadas | Catálogo e próprios pedidos |
 
-| Perfil | Responsabilidade |
-|---|---|
-| Administrador | Usuários, perfis, permissões, configurações e supervisão global |
-| TRADE / Gestor | Solicitações de compra, aprovações, estoque autorizado, eventos e relatórios |
-| CD / Estoque | Recebimento, armazenamento, confirmação de saídas, transferências, retiradas e protocolos |
-| Solicitante | Criar e acompanhar as próprias solicitações |
-| Indústria | Consultar e operar somente os dados associados à sua indústria |
+## 5. Requisitos funcionais
 
-Os recortes de acesso devem ser equivalentes aos do legado: próprio usuário, departamento, perfil e indústria. Esconder um menu não substitui validação da ação e do dado acessado.
+### RF-01 — Autenticação e perfil
 
-## 4. Escopo funcional
+- Login por e-mail e senha via JWT.
+- Consulta do usuário autenticado, perfil e departamento.
+- Expiração e renovação de token.
+- Navegação e ações condicionadas às permissões do perfil.
 
-O escopo-alvo inclui todos os módulos listados na [matriz de paridade](./PARIDADE-FUNCIONAL.md), incluindo:
+**Status:** Implementado no backend e frontend. Falta homologar cenários de erro, recuperação de senha e política definitiva de sessão.
 
-- Autenticação, perfil, usuários e permissões administráveis.
-- Catálogo de brindes, categorias e demais cadastros auxiliares.
-- Saldo por local, livro de movimentações, entrada, saída, fila de confirmação do CD, ajuste/estorno e transferência.
-- Solicitações internas, aprovações configuráveis, separação, atendimento parcial/total, retirada e comprovante.
-- Fluxo TRADE de compra, recebimento de itens/notas fiscais e retirada por QR/assinatura.
-- Eventos/feirões, alocação e saldo de evento.
-- Relatórios e exportações, importação validada, notificações, auditoria, busca, configurações e rotinas de cópia/restauração compatíveis com o modo local.
+### RF-02 — Controle de acesso
 
-Integrações que exigem servidor (envio real de e-mail, sincronização Lecom e persistência central) precisam ser identificadas como dependências; não podem ser representadas como concluídas por uma tela demonstrativa.
+- Permissões separadas para dashboard, catálogo, estoque, solicitações e auditoria.
+- Escopo próprio, departamento ou global para leitura de solicitações.
+- Usuário não pode acessar ou alterar dados fora do seu escopo.
+- Ações sensíveis devem ser bloqueadas no backend, mesmo que o frontend oculte o botão.
 
-## 5. Fluxos centrais de aceite
+**Status:** Implementado com matriz estática por perfil. Falta decidir se permissões customizáveis serão necessárias após a homologação.
 
-### Solicitação interna
+### RF-03 — Catálogo
 
-Solicitante cria e envia pedido; o mecanismo aplica as regras de aprovação; aprovador aprova ou rejeita com motivo; operação separa e registra atendimento, inclusive parcial; o saldo é atualizado; solicitante e operação consultam o histórico e o comprovante conforme sua permissão.
+- Listar categorias e produtos ativos.
+- Exibir SKU, nome, descrição, unidade e estoque mínimo.
+- Criar e atualizar categorias/produtos para perfis autorizados.
+- Impedir exclusão que quebre histórico; preferir desativação.
 
-### TRADE e recebimento
+**Status:** API e tela de produtos implementam listagem, criação, edição e desativação/reativação lógica, com busca e filtros por categoria/status. Ainda faltam paginação, validação de categorias pela interface e aceite com usuários/dados reais.
 
-Solicitante registra necessidade de compra; gestor aprova e acompanha; chegada é recebida no CD com quantidades e dados da nota; o estoque é atualizado; a retirada é autorizada e registrada; QR, assinatura e protocolo preservam a evidência.
+### RF-04 — Estoque
 
-### Estoque
+- Exibir quantidade física, reservada e disponível.
+- Registrar entrada, saída e ajuste.
+- Bloquear saldo disponível negativo.
+- Manter movimentação vinculada ao usuário, produto, referência e observação.
+- Reservar itens durante o processamento de uma solicitação.
 
-Entrada, saída, ajuste, estorno e transferência atualizam posições e livro de forma rastreável. Registro de saída pelo gestor e confirmação física pelo CD são etapas distintas. Não permitir saldo físico/reservado inconsistente.
+**Status:** Saldos, movimentações e regras transacionais estão implementados; a interface permite consultar saldos/movimentações e registrar entrada conforme permissão. Faltam homologar ajustes/saídas e concorrência com PostgreSQL, filtros do histórico e confirmar se transferência entre locais pertence ao escopo.
 
-## 6. Requisitos não funcionais
+### RF-05 — Solicitações
 
-- Interface responsiva em português e acessível por teclado.
-- Preservar histórico e impedir exclusão acidental de registros referenciados.
-- Validar campos, transições, permissões e quantidades antes de persistir.
-- Permitir exportar/cópia de dados JSON para recuperação durante o modo local.
-- Marcar claramente os limites de sincronização, autenticação e armazenamento local.
-- Preparar contratos e modelos para substituir o adaptador local por persistência central sem redesenhar fluxos.
+- Criar rascunho com um ou mais produtos.
+- Enviar solicitação com justificativa.
+- Aprovar ou rejeitar com motivo.
+- Reservar estoque de solicitações aprovadas.
+- Atender parcialmente ou totalmente.
+- Cancelar solicitação elegível e liberar reservas.
+- Exibir histórico/status ao solicitante.
 
-## 7. Plano de sprints
+**Status:** Backend e interface implementam solicitação com múltiplos itens, envio, aprovação, rejeição com motivo, reserva, atendimento parcial por item e cancelamento. Falta executar jornada ponta a ponta em ambiente de homologação e validar a matriz de acesso com os responsáveis do negócio.
 
-As sprints são organizadas por dependência funcional; estimativas devem ser revistas após homologação detalhada dos formulários e regras do legado.
+### RF-06 — Auditoria
 
-### Sprint P0 — Paridade e fundação
+- Registrar ações relevantes com ator, entidade, data, metadados e request id quando disponível.
+- Permitir consulta restrita a perfis autorizados.
+- Filtrar por período, usuário, entidade e ação.
 
-- Fechar matriz com o legado em modo somente leitura.
-- Corrigir o PRD/TRD e declarar o armazenamento local como temporário.
-- Implementar base local de usuários, cadastros auxiliares e permissões configuráveis.
-- Centralizar validação local de acesso, escopo e mudanças auditáveis.
+**Status:** Registro no backend, endpoint protegido com filtros/paginação e tela conectada estão implementados. Falta validar visibilidade e conteúdo dos eventos com perfis autorizados e definir retenção operacional.
 
-**Status:** em andamento. Gestão local inicial de usuários/cadastros/permissões foi adicionada; falta revisar escopos, segurança do modo temporário e homologar os perfis.
+### RF-07 — Migração
 
-### Sprint P1 — Catálogo e estoque completo
+- Ler pacote exportado do legado sem escrita na origem.
+- Validar campos obrigatórios, duplicidades, perfis e saldos.
+- Executar simulação antes da aplicação.
+- Aplicar em transação única somente após conferência.
+- Comparar totais antes/depois.
 
-- Brindes: sequência de código, cadastro, foto, detalhe, histórico e lixeira.
-- Estoque: posições por local, NF/anexos compatíveis, saídas/fila CD, ajustes, estornos e transferências.
-- Estoque por indústria e filtros do livro de movimentos.
+**Status:** Importador oferece validação/simulação e aplicação transacional para usuários, perfis, departamentos, categorias, produtos e saldos. Falta receber o pacote oficial, aprovar o mapeamento, fazer ensaio e reconciliar a carga. Histórico legado de movimentações/solicitações/auditoria não está implementado e só deve entrar mediante aprovação de escopo.
 
-**Status:** pendente. A implementação atual cobre apenas CRUD básico de catálogo, saldo agregado, entrada simples e movimentos básicos.
+## 6. Fluxo principal
 
-### Sprint P2 — Solicitações e operação interna
+1. Solicitante entra no sistema.
+2. Consulta o catálogo e cria um pedido.
+3. Envia o pedido para aprovação.
+4. Aprovador aprova ou rejeita informando o motivo.
+5. Operação reserva o estoque.
+6. Operação atende parte ou toda a quantidade reservada.
+7. O sistema baixa o estoque, atualiza o status e registra auditoria.
+8. Solicitante acompanha o resultado.
 
-- Formulário/detalhe/histórico e estados equivalentes aos do legado.
-- Regras de aprovação editáveis por perfil e escopo.
-- Filas de aprovação e picking, separação, entrega e comprovantes.
+Estados suportados: `draft`, `submitted`, `approved`, `reserved`, `partially_fulfilled`, `fulfilled`, `rejected` e `cancelled`.
 
-**Status:** pendente. A tela atual tem um fluxo simplificado, sem a operação completa.
+## 7. Critérios de aceite do MVP
 
-### Sprint P3 — TRADE, recebimento e eventos
+- Um usuário autenticado vê somente os menus e dados compatíveis com seu perfil.
+- Uma solicitação sem itens não pode ser enviada.
+- Um aprovador não aprova uma solicitação já atendida, rejeitada ou cancelada.
+- Uma rejeição exige motivo e fica registrada.
+- Um atendimento parcial atualiza quantidades, estoque e status sem consumir mais do que foi reservado.
+- Um cancelamento libera a reserva correspondente.
+- A API rejeita saldo reservado maior que o saldo físico.
+- O importador executa simulação sem gravar e interrompe a aplicação diante de inconsistência.
+- O frontend compila e consegue autenticar, listar catálogo, estoque e solicitações contra a API publicada.
+- O ambiente produtivo usa PostgreSQL persistente, segredo configurado e `DEBUG=false`.
 
-- Solicitação de compra e acompanhamento TRADE.
-- Recebimento pelo CD com conferência de item, quantidade e nota fiscal.
-- QR, assinatura e retirada; eventos/feirões e controle de alocação.
+## 8. Plano de sprints
 
-**Status:** pendente.
+Cada sprint considera uma semana de trabalho. A duração pode ser ajustada sem alterar os entregáveis.
 
-### Sprint P4 — Protocolos, relatórios e administração
+### Sprint 0 — Fundação e alinhamento
 
-- Protocolos consultáveis e exportáveis.
-- Relatórios do legado com exportação.
-- Importação de planilha com validação, simulação e reconciliação.
-- Notificações, busca, configurações, auditoria completa e cópia/restauração local.
+**Objetivo:** fechar decisões de ambiente, escopo e dados.
 
-**Status:** pendente; auditoria é apenas parcial e os demais módulos não estão na interface atual.
+Feito no repositório:
 
-### Sprint P5 — Homologação de paridade
+- Definição inicial da arquitetura, perfis, riscos, plano e checklist de go-live.
 
-- Percorrer a matriz com representantes de cada perfil.
-- Comparar cada jornada e regra com o sistema legado.
-- Validar importação em cópia e reconciliar cadastros, estoque e históricos.
-- Definir infraestrutura central antes de liberar operação compartilhada.
+Falta:
 
-**Status:** pendente.
+- Negócio confirmar perfis/departamentos e regras de aprovação.
+- Confirmar projetos/domínios/runtime Vercel e provisionar banco persistente.
+- Obter export oficial do legado e definir responsáveis pelo aceite.
 
-## 8. Definição de pronto
+Saída esperada: checklist de homologação e pacote legado versionado fora do repositório, quando contiver dados pessoais.
 
-Para cada item funcional: tela navegável, validação e estados corretos, restrição por perfil/escopo, persistência coerente com o modo escolhido, registro de auditoria quando aplicável e documentação atualizada. Recursos dependentes de backend devem estar explicitamente identificados como indisponíveis no modo local, não descritos como entregues.
+**Status:** Parcial. Arquitetura e documentação estão definidas. O usuário informa deploy na Vercel, sem verificação independente. Ainda faltam confirmar os projetos/domínios e o runtime da API, decidir/provisionar persistência durável (recomendação: PostgreSQL; JSON gravado no filesystem da função não é fonte de dados de produção), obter export oficial e nomear aprovadores do aceite.
+
+### Sprint 1 — Acesso e autenticação
+
+**Objetivo:** garantir identidade, perfil e escopo de dados.
+
+Feito no repositório:
+
+- Login JWT, perfil e permissões por papel; menu/rota de solicitações ocultos para o CD; testes automatizados cobrem casos de solicitante, aprovador e operador.
+- O perfil indústria tem vínculo por `industry_id`; saldo global é negado. Posições locais e transferências físicas são restritas a CD/admin; leituras setoriais usam movimentos/agregados da sessão. Ainda faltam escopo setorial em eventos e homologação completa.
+
+Falta:
+
+- Homologar matriz e isolamento com usuários reais, criar contas de teste e definir recuperação de senha/política de sessão.
+
+**Status:** Parcial. Os gates locais de regressão passaram (testes de perfis incluídos), mas equivalência completa da matriz, escopo por indústria e validação com usuários/ambiente real continuam pendentes.
+
+### Sprint 2 — Catálogo e estoque
+
+**Objetivo:** disponibilizar catálogo confiável e saldo operacional.
+
+Feito no repositório:
+
+- API e tela para listar/criar/editar/desativar produtos; busca e filtros por texto/categoria/status.
+- Backend com saldos, entradas/ajustes e ordens de saída em duas etapas: reserva ao autorizar, baixa única após QR do CD; cancelamento pendente libera a reserva. A tela registra entrada, autoriza/cancela saída, exibe QR ao autorizador e confirma com token lido pelo CD.
+
+Falta:
+
+- Completar campos do catálogo de brindes, código sequencial/foto/valor e manutenção de categorias.
+- Integrar eventos/cotas e ajustes/estornos na UI; executar concorrência em PostgreSQL e aceitar transferências com dados reais.
+
+**Status:** Parcial: saldo por indústria/local e transferência `−qty/+qty` estão implementados; saída genérica é bifásica; TRADE cobre compra/chamado, recebimento parcial por NF numérica, retirada QR e protocolo assinado. Faltam anexo durável da NF, PDF, eventos, ajustes UI, catálogo completo, PostgreSQL e aceite operacional. Ver `FEATURE-PARITY.md`.
+
+### Sprint 3 — Solicitações e aprovações
+
+**Objetivo:** fechar o ciclo pedido-aprovação-atendimento.
+
+Feito no repositório:
+
+- Formulário/carrinho com múltiplos itens, listagem, busca, filtros, detalhe expandido e ações de enviar, aprovar, rejeitar, reservar, atender parcialmente e cancelar.
+- Regras de domínio transacionais e registro de auditoria nas transições.
+
+Falta:
+
+- Testar a jornada completa no ambiente publicado com perfis reais, automatizar testes de jornada e obter aceite das regras operacionais.
+
+**Status:** Parcial. O TRADE agora tem fluxo separado de criação/aprovação/recebimento/retirada assinada; solicitações internas ainda não têm rascunho editável, histórico completo, fila/alçada configurável nem paridade com o original. Eventos/PDF e ambiente PostgreSQL/produção não homologados. Ver `FEATURE-PARITY.md`.
+
+### Sprint 4 — Migração e auditoria
+
+**Objetivo:** carregar dados confiáveis e garantir rastreabilidade.
+
+Feito no repositório:
+
+- Importador de mestres/saldos com validação, simulação e aplicação transacional controlada.
+- Auditoria consultável por filtros/paginação, com tela conectada.
+
+Falta:
+
+- Receber o pacote oficial, simular, revisar divergências e reconciliar após aprovação.
+- Importação histórica não está implementada; decidir escopo antes de planejá-la.
+
+**Status:** Importador de dados mestres/saldos e consulta de auditoria filtrada/paginada estão implementados. Pendente pacote oficial, simulação e reconciliação aprovadas; importação histórica adicional não faz parte do release confirmado.
+
+### Sprint 5 — Deploy, segurança e go-live
+
+**Objetivo:** publicar uma versão homologada e observável.
+
+Feito no repositório:
+
+- Configuração de produção, CI backend/frontend e documentação de go-live/rollback.
+- Verificações locais e checks remotos do commit `b7f58b9` registrados.
+
+Falta:
+
+- O usuário relata deploy na Vercel; validar URL, runtime, banco, variáveis e migrações sem presumir que estejam corretos.
+- Executar smoke/regressão no ambiente real, confirmar backups/restore, rollback, monitoramento, carga inicial e aceite.
+
+**Status:** Código, CI e verificações locais estão implementados. O usuário relata publicação na Vercel, não verificada independentemente. Pendente validar ambiente publicado, banco persistente, variáveis, migrações, CORS/domínio, smoke test, backups/restore, rollback, monitoramento e aceite. Não há persistência JSON local implementada; não usar arquivo local de função Vercel como fonte oficial.
+
+## 9. Métricas de sucesso
+
+- 100% das solicitações com status rastreável.
+- 0 aprovações ou baixas fora do escopo autorizado nos testes de segurança.
+- 100% das baixas vinculadas a uma solicitação ou referência operacional.
+- Divergência de produtos, usuários e saldos explicada antes da carga final.
+- Tempo de resposta percebido aceitável nas telas principais, a ser definido após dados reais.
+- Primeiro ciclo de solicitação concluído em homologação sem intervenção manual no banco.
+
+## 10. Riscos e dependências
+
+| Risco/dependência | Impacto | Mitigação |
+|---|---|---|
+| Exportação legada incompleta | Alto | Rodar simulação e relatório antes da carga |
+| Permissões não validadas pelo negócio | Alto | Homologar matriz por perfil e departamento |
+| SQLite em produção | Alto | Bloquear go-live sem PostgreSQL |
+| Projeto/runtime/banco Vercel não verificados | Alto | Confirmar configuração real e validar persistência/fluxos antes do go-live |
+| Histórico legado sem chave de relacionamento | Médio | Importar primeiro dados mestres; tratar histórico em lote separado |
+| Homologação/UX operacional pendente | Médio | Testar jornadas, erros, paginação e filtros com usuários reais |
+
+## 11. Pendências priorizadas
+
+### Bloqueadoras do go-live
+
+1. Confirmar URL/projetos Vercel e validar o deploy real.
+2. Confirmar/provisionar armazenamento persistente; recomendação atual é PostgreSQL externo. Não gravar JSON no filesystem efêmero da função.
+3. Revisar variáveis, hosts, CORS/CSRF e separação de preview/produção.
+4. Executar migrações e smoke test no ambiente publicado.
+5. Validar permissões e fluxos com usuários reais.
+6. Executar importação oficial somente após aprovação e reconciliar totais.
+
+### Importantes antes da primeira operação
+
+1. Completar paginação do catálogo e filtros operacionais do histórico de estoque.
+2. Automatizar testes de jornada no frontend e testar as transações críticas contra PostgreSQL.
+3. Definir recuperação de senha, retenção de auditoria e suporte operacional.
+
+### Evoluções posteriores
+
+1. Permissões configuráveis por administrador.
+2. Notificações automáticas.
+3. Importação histórica completa.
+4. Relatórios e indicadores de consumo.
+5. Aplicativo distribuído/Tauri.
+
+## 12. Requisitos de VM para execução do projeto
+
+Os tamanhos abaixo são recomendações iniciais para uma instalação pequena, não substituem medição de carga. O sistema usa Django 5.2/Python 3.13, PostgreSQL 16 e React/Vite; a interface pode continuar hospedada na Vercel e consumir a API na VM.
+
+| Perfil | CPU | Memória | Disco persistente | Uso |
+|---|---:|---:|---:|---|
+| Desenvolvimento/homologação | 2 vCPU | 4 GB RAM | 40 GB SSD | API, banco de teste, build e testes; não usar como produção |
+| Produção inicial pequena (recomendado) | 4 vCPU | 8 GB RAM | 100 GB SSD/NVMe | API e serviços operacionais; preferir PostgreSQL gerenciado ou em host separado |
+| Produção tudo-em-um (contingência/piloto) | 4 vCPU | 8 GB RAM | 150 GB SSD/NVMe | API + PostgreSQL na mesma VM; ponto único de falha e exige backup externo rigoroso |
+
+Requisitos de sistema e operação:
+
+- Ubuntu Server 24.04 LTS x86_64 atualizado; Python 3.13 para API, PostgreSQL 16 e Node.js 22 apenas para build do frontend.
+- Servidor WSGI (Gunicorn) e proxy reverso (Nginx ou Caddy) com TLS válido. A dependência/serviço WSGI ainda precisa ser incluída e validada antes de um deploy Django em VM.
+- Disco de banco/dados persistente e monitorado; backup criptografado fora da VM, diário, com retenção acordada e teste periódico de restauração. Definir RPO/RTO antes do go-live.
+- Firewall público apenas para SSH restrito por IP e HTTPS (443); HTTP (80) apenas para redirecionamento/ACME. PostgreSQL (5432) não deve ficar exposto à internet.
+- Segredos em variáveis/secret manager, acesso administrativo individual, atualizações de segurança, logs/alertas de espaço, CPU, memória e disponibilidade.
+- Banco de produção separado de desenvolvimento/preview. Não usar arquivo JSON no filesystem da função Vercel como persistência; caso JSON seja requisito, manter apenas como formato de importação/exportação ou usar serviço externo durável com controle de concorrência.
+
+O dimensionamento final depende do número de usuários simultâneos, tamanho do histórico e política de retenção. Reavaliar após teste de carga e crescimento medido.

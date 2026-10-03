@@ -2,17 +2,43 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, ArrowUpRight, Boxes, ClipboardList, PackageCheck } from "lucide-react";
 import { Card, PageHeader } from "../components/Card";
 import { api } from "../lib/api";
-import type { GiftRequest, Product, StockBalance } from "../types";
+import type { GiftRequest, IndustryBalance, Product, StockBalance } from "../types";
 import { useAuth } from "../context/AuthContext";
-import { can } from "../lib/access";
+import { can, inventoryScopeForRole } from "../lib/access";
 
 export function DashboardPage() {
   const { user } = useAuth();
-  const [products, setProducts] = useState<Product[]>([]); const [balances, setBalances] = useState<StockBalance[]>([]); const [requests, setRequests] = useState<GiftRequest[]>([]); const [error, setError] = useState("");
-  useEffect(() => { Promise.all([api.products(), can(user, "stock.view") ? api.balances() : Promise.resolve([]), can(user, "requests.view_own") || can(user, "requests.view_all") ? api.requests() : Promise.resolve([])]).then(([p, b, r]) => { setProducts(p); setBalances(b); setRequests(r); }).catch((err) => setError(err.message)); }, [user]);
-  const lowStock = balances.filter((balance) => { const product = products.find((item) => item.id === balance.product); return product && balance.available_quantity <= product.minimum_stock; }).length;
+  const [products, setProducts] = useState<Product[]>([]);
+  const [balances, setBalances] = useState<StockBalance[]>([]);
+  const [industryBalances, setIndustryBalances] = useState<IndustryBalance[]>([]);
+  const [requests, setRequests] = useState<GiftRequest[]>([]);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    const inventoryScope = inventoryScopeForRole(user?.profile.role);
+    const stockRequest = can(user, "stock.view")
+      ? inventoryScope === "industry" ? api.industryBalances() : api.balances()
+      : Promise.resolve([]);
+    Promise.all([
+      api.products(),
+      stockRequest,
+      can(user, "requests.view_own") || can(user, "requests.view_all") ? api.requests() : Promise.resolve([]),
+    ]).then(([nextProducts, stockRows, nextRequests]) => {
+      setProducts(nextProducts);
+      setRequests(nextRequests);
+      if (inventoryScope === "industry") {
+        setIndustryBalances(stockRows as IndustryBalance[]);
+        setBalances([]);
+      } else {
+        setBalances(stockRows as StockBalance[]);
+        setIndustryBalances([]);
+      }
+    }).catch((err) => setError(err.message));
+  }, [user]);
+  const isIndustryUser = inventoryScopeForRole(user?.profile.role) === "industry";
+  const industryTotal = industryBalances.reduce((sum, balance) => sum + balance.quantity, 0);
+  const lowStock = isIndustryUser ? null : balances.filter((balance) => { const product = products.find((item) => item.id === balance.product); return product && balance.available_quantity <= product.minimum_stock; }).length;
   const pending = requests.filter((request) => ["submitted", "approved", "reserved", "partially_fulfilled"].includes(request.status)).length;
-  return <section className="page"><PageHeader title="Visão geral" description="Acompanhe os sinais mais importantes da operação hoje." action={<button className="secondary-button"><ArrowUpRight size={16} />Exportar resumo</button>} />{error && <div className="alert error">{error}</div>}<div className="metric-grid"><Card title="Itens cadastrados" value={products.length} detail="Catálogo ativo" icon={<Boxes size={20} />} /><Card title="Solicitações em fluxo" value={pending} detail="Aguardando ação" icon={<ClipboardList size={20} />} tone="violet" /><Card title="Saldo disponível" value={balances.reduce((sum, balance) => sum + balance.available_quantity, 0)} detail="Unidades liberadas" icon={<PackageCheck size={20} />} tone="green" /><Card title="Atenção no estoque" value={lowStock} detail="Itens no mínimo" icon={<AlertTriangle size={20} />} tone="amber" /></div><div className="dashboard-grid"><div className="panel"><div className="panel-heading"><div><span className="eyebrow">Atividade</span><h3>Solicitações recentes</h3></div><span className="panel-link">Ver todas</span></div>{requests.slice(0, 5).map((request) => <div className="list-row" key={request.id}><div className="list-avatar"><ClipboardList size={16} /></div><div className="row-main"><strong>#{request.id.slice(0, 8)}</strong><span>{request.items.length} item(ns) · {request.justification || "Sem justificativa"}</span></div><StatusBadge status={request.status} /></div>)}{!requests.length && <Empty text="Nenhuma solicitação encontrada." />}</div><div className="panel accent-panel"><span className="eyebrow">Leitura rápida</span><h3>O que precisa de atenção?</h3><div className="insight"><div className="insight-number">{lowStock}</div><div><strong>itens em nível crítico</strong><p>Revise entradas e compras antes da próxima solicitação.</p></div></div><div className="insight"><div className="insight-number violet">{pending}</div><div><strong>solicitações em aberto</strong><p>Há fluxos que dependem de aprovação ou atendimento.</p></div></div></div></div></section>;
+  return <section className="page"><PageHeader title="Visão geral" description="Acompanhe os sinais mais importantes da operação hoje." action={<button className="secondary-button"><ArrowUpRight size={16} />Exportar resumo</button>} />{error && <div className="alert error">{error}</div>}<div className="metric-grid"><Card title="Itens cadastrados" value={products.length} detail="Catálogo ativo" icon={<Boxes size={20} />} /><Card title="Solicitações em fluxo" value={pending} detail="Aguardando ação" icon={<ClipboardList size={20} />} tone="violet" /><Card title={isIndustryUser ? "Saldo atribuído" : "Saldo disponível"} value={isIndustryUser ? industryTotal : balances.reduce((sum, balance) => sum + balance.available_quantity, 0)} detail={isIndustryUser ? "Da sua indústria" : "Unidades liberadas"} icon={<PackageCheck size={20} />} tone="green" /><Card title="Atenção no estoque" value={lowStock ?? "—"} detail={isIndustryUser ? "Indicador global restrito" : "Itens no mínimo"} icon={<AlertTriangle size={20} />} tone="amber" /></div><div className="dashboard-grid"><div className="panel"><div className="panel-heading"><div><span className="eyebrow">Atividade</span><h3>Solicitações recentes</h3></div><span className="panel-link">Ver todas</span></div>{requests.slice(0, 5).map((request) => <div className="list-row" key={request.id}><div className="list-avatar"><ClipboardList size={16} /></div><div className="row-main"><strong>#{request.id.slice(0, 8)}</strong><span>{request.items.length} item(ns) · {request.justification || "Sem justificativa"}</span></div><StatusBadge status={request.status} /></div>)}{!requests.length && <Empty text="Nenhuma solicitação encontrada." />}</div><div className="panel accent-panel"><span className="eyebrow">Leitura rápida</span><h3>O que precisa de atenção?</h3><div className="insight"><div className="insight-number">{lowStock ?? "—"}</div><div><strong>{isIndustryUser ? "Indicador global restrito" : "itens em nível crítico"}</strong><p>{isIndustryUser ? "Saldos e níveis do CD não são exibidos para este perfil." : "Revise entradas e compras antes da próxima solicitação."}</p></div></div><div className="insight"><div className="insight-number violet">{pending}</div><div><strong>solicitações em aberto</strong><p>Há fluxos que dependem de aprovação ou atendimento.</p></div></div></div></div></section>;
 }
 
 export function StatusBadge({ status }: { status: string }) { const labels: Record<string, string> = { draft: "Rascunho", submitted: "Enviada", approved: "Aprovada", reserved: "Reservada", partially_fulfilled: "Parcial", fulfilled: "Atendida", rejected: "Rejeitada", cancelled: "Cancelada" }; return <span className={`badge ${status}`}>{labels[status] || status}</span>; }
